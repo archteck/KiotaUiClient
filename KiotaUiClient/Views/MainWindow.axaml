@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="https://github.com/avaloniaui/designer"
+        xmlns:vm="clr-namespace:KiotaUiClient.ViewModels"
+        x:Class="KiotaUiClient.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="600" Height="500"
+        Title="Kiota Client Generator">
+  
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <StackPanel Margin="20" Spacing="10">
+
+        <TextBlock Text="OpenAPI URL"/>
+        <TextBox Text="{Binding Url}" />
+
+        <TextBlock Text="Namespace"/>
+        <TextBox Text="{Binding Namespace}" />
+
+        <TextBlock Text="Client Name"/>
+        <TextBox Text="{Binding ClientName}" />
+
+        <TextBlock Text="Access Modifier"/>
+        <ComboBox SelectedItem="{Binding AccessModifier}" ItemsSource="{Binding AccessModifiers}" />
+
+        <TextBlock Text="Destination Folder"/>
+        <StackPanel Orientation="Horizontal" Spacing="5">
+            <TextBox Width="400" Text="{Binding DestinationFolder}" IsReadOnly="True"/>
+            <Button Content="Browse" Command="{Binding BrowseCommand}"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Content="Generate" Command="{Binding GenerateCommand}" />
+            <Button Content="Update" Command="{Binding UpdateCommand}" />
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+        </StackPanel>
+
+        <TextBlock Text="Status:"/>
+        <ScrollViewer Height="150" VerticalScrollBarVisibility="Auto">
+            <TextBox Text="{Binding StatusText}" 
+                     AcceptsReturn="True" 
+                     IsReadOnly="True" 
+                     TextWrapping="Wrap" 
+                     Background="White"
+                     Foreground="Black"/>
+        </ScrollViewer>
+
+    </StackPanel>
+</Window>
