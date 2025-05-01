@@ -75,7 +75,7 @@
                 <Menu Background="Transparent" Margin="5,0">
                     <MenuItem Header="_File">
                         <MenuItem Header="_Generate"
-                                  Command="{Binding GenerateCommand}"
+                                  Command="{Binding GenerateClient}"
                                   HotKey="Ctrl+G">
                             <MenuItem.Icon>
                                 <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
@@ -83,7 +83,7 @@
                             </MenuItem.Icon>
                         </MenuItem>
                         <MenuItem Header="_Update"
-                                  Command="{Binding UpdateCommand}"
+                                  Command="{Binding UpdateClient}"
                                   HotKey="Ctrl+U">
                             <MenuItem.Icon>
                                 <PathIcon
@@ -92,7 +92,7 @@
                             </MenuItem.Icon>
                         </MenuItem>
                         <MenuItem Header="_Refresh"
-                                  Command="{Binding RefreshCommand}"
+                                  Command="{Binding RefreshClient}"
                                   HotKey="F5">
                             <MenuItem.Icon>
                                 <PathIcon
@@ -102,7 +102,7 @@
                         </MenuItem>
                         <Separator />
                         <MenuItem Header="_Browse Folder"
-                                  Command="{Binding BrowseCommand}"
+                                  Command="{Binding BrowseFolder}"
                                   HotKey="Ctrl+B">
                             <MenuItem.Icon>
                                 <PathIcon
@@ -142,13 +142,13 @@
                 <TextBlock Text="Destination Folder" />
                 <StackPanel Orientation="Horizontal" Spacing="5">
                     <TextBox Width="400" Text="{Binding DestinationFolder}" IsReadOnly="True" />
-                    <Button Content="Browse" Command="{Binding BrowseCommand}" />
+                    <Button Content="Browse" Command="{Binding BrowseFolder}" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Content="Generate" Command="{Binding GenerateCommand}" />
-                    <Button Content="Update" Command="{Binding UpdateCommand}" />
-                    <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+                    <Button Content="Generate" Command="{Binding GenerateClient}" />
+                    <Button Content="Update" Command="{Binding UpdateClient}" />
+                    <Button Content="Refresh" Command="{Binding RefreshClient}" />
                 </StackPanel>
             </StackPanel>
             <!-- Status label docked at top -->

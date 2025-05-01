@@ -1,39 +1,43 @@
 ﻿using System.Collections.ObjectModel;
-using System.Reactive;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using ReactiveUI;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using KiotaUiClient.Services;
 
 namespace KiotaUiClient.ViewModels;
 
-public class MainWindowViewModel : ViewModelBase
+public partial class MainWindowViewModel : ViewModelBase
 {
-    public string Url { get; set; } = string.Empty;
-    public string Namespace { get; set; } = string.Empty;
-    public string ClientName { get; set; } = string.Empty;
-    public string AccessModifier { get; set; } = "Public";
-    public ObservableCollection<string> AccessModifiers { get; } = new(["Public", "Internal", "Protected"]);
-    public string DestinationFolder { get; set; } = string.Empty;
-    public string StatusText { get; set; } = string.Empty;
+    [ObservableProperty]
+    private string _url = string.Empty;
 
-    public ReactiveCommand<Unit, Unit> BrowseCommand { get; }
-    public ReactiveCommand<Unit, Unit> GenerateCommand { get; }
-    public ReactiveCommand<Unit, Unit> UpdateCommand { get; }
-    public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
+    [ObservableProperty]
+    private string _namespace = string.Empty;
+
+    [ObservableProperty]
+    private string _clientName = string.Empty;
+
+    [ObservableProperty]
+    private string _accessModifier = "Public";
+
+    [ObservableProperty]
+    private string _destinationFolder = string.Empty;
+
+    [ObservableProperty]
+    private string _statusText = string.Empty;
+
+    public ObservableCollection<string> AccessModifiers { get; } = new(["Public", "Internal", "Protected"]);
 
     private readonly KiotaService _kiotaService = new();
 
     public MainWindowViewModel()
     {
-        BrowseCommand = ReactiveCommand.CreateFromTask(BrowseFolder);
-        GenerateCommand = ReactiveCommand.CreateFromTask(GenerateClient);
-        UpdateCommand = ReactiveCommand.CreateFromTask(UpdateClient);
-        RefreshCommand = ReactiveCommand.CreateFromTask(RefreshClient);
     }
 
+    [RelayCommand]
     private async Task BrowseFolder()
     {
         var window = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
@@ -47,31 +51,27 @@ public class MainWindowViewModel : ViewModelBase
         if (folder?.Count > 0)
         {
             DestinationFolder = folder[0].Path.LocalPath;
-            this.RaisePropertyChanged(nameof(DestinationFolder));
         }
     }
 
+    [RelayCommand]
     private async Task GenerateClient()
     {
         StatusText = "Generating client...";
-        this.RaisePropertyChanged(nameof(StatusText));
         StatusText = await _kiotaService.GenerateClient(Url, Namespace, ClientName, AccessModifier, DestinationFolder, clean: false);
-        this.RaisePropertyChanged(nameof(StatusText));
     }
 
+    [RelayCommand]
     private async Task UpdateClient()
     {
         StatusText = "Updating client...";
-        this.RaisePropertyChanged(nameof(StatusText));
         StatusText = await _kiotaService.UpdateClient(DestinationFolder);
-        this.RaisePropertyChanged(nameof(StatusText));
     }
 
+    [RelayCommand]
     private async Task RefreshClient()
     {
         StatusText = "Refreshing from kiota-lock.json...";
-        this.RaisePropertyChanged(nameof(StatusText));
         StatusText = await _kiotaService.RefreshFromLock(DestinationFolder);
-        this.RaisePropertyChanged(nameof(StatusText));
     }
 }
