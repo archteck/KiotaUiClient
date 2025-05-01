@@ -39,7 +39,7 @@ The application interface includes several fields that correspond to Kiota's com
 - **Browse**: Select a destination folder
 - **Generate Client**: Generate a new API client
 - **Update Client**: Update an existing client with the latest version of Kiota
-- **Refresh Client**: Regenerate a client using configuration from kiota-lock.json
+- **Refresh Client**: Regenerate a client using configuration from kiota-lock.json, if language and access modifier(C# only) provided it will use that instead of the values in kiota-lock.json
 
 ## How It Works
 1. The application manages Kiota's installation using .NET's global tool system
