@@ -19,7 +19,9 @@ cd KiotaUiClient
 dotnet build
 dotnet run --project KiotaUiClient
 
-![image](https://github.com/user-attachments/assets/8ff8d51b-d3fc-4d7d-8644-168b6344e95a)
+
+![image](https://github.com/user-attachments/assets/cf094356-5027-47f7-a8ef-4de78cecb317)
+
 
 ## Usage
 The application interface includes several fields that correspond to Kiota's command-line options:
