@@ -6,6 +6,8 @@
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Width="600" Height="700"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="BorderOnly"
         Title="Kiota Client Generator">
 
     <Design.DataContext>
@@ -13,11 +15,17 @@
     </Design.DataContext>
 
     <Window.Styles>
-        <Style Selector="MenuItem">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Padding" Value="8,4" />
-            <Setter Property="CornerRadius" Value="4" />
+        <Style Selector="Button.WindowControlButton:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#404045" />
+        </Style>
+        <Style Selector="Button.WindowControlButton:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#303035" />
+        </Style>
+        <Style Selector="Button.CloseButton:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E81123" />
+        </Style>
+        <Style Selector="Button.CloseButton:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#8B0A14" />
         </Style>
 
         <Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot">
@@ -36,10 +44,7 @@
             <Setter Property="Height" Value="1" />
             <Setter Property="Margin" Value="0,2" />
         </Style>
-
-        <Style Selector="Menu">
-            <Setter Property="Background" Value="#333333" />
-        </Style>
+        
         <!-- 1) Base style for all TextBox -->
         <Style Selector="TextBox">
             <Setter Property="Background" Value="White" />
@@ -67,116 +72,186 @@
 
     </Window.Styles>
 
-    <DockPanel>
-        <Border Height="48"
-                DockPanel.Dock="Top"
-                BoxShadow="0 1 2 0 #40000000"
-                Background="#333333">
-            <Grid>
-                <Menu Background="Transparent" Margin="5,0">
-                    <MenuItem Header="_File">
-                        <MenuItem Header="_Generate"
-                                  Command="{Binding GenerateClientCommand}"
-                                  HotKey="Ctrl+G">
-                            <MenuItem.Icon>
-                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
-                                          Width="16" Height="16" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <MenuItem Header="_Update"
-                                  Command="{Binding UpdateClientCommand}"
-                                  HotKey="Ctrl+U">
-                            <MenuItem.Icon>
-                                <PathIcon
-                                    Data="M21,10.12H14.22L16.96,7.3C14.23,4.6 9.81,4.5 7.08,7.2C4.35,9.91 4.35,14.28 7.08,17C9.81,19.7 14.23,19.7 16.96,17C18.32,15.65 19,14.08 19,12.1H21C21,14.08 20.12,16.65 18.36,18.39C14.85,21.87 9.15,21.87 5.64,18.39C2.14,14.92 2.11,9.28 5.62,5.81C9.13,2.34 14.76,2.34 18.27,5.81L21,3V10.12M12.5,8V12.25L16,14.33L15.28,15.54L11,13V8H12.5Z"
-                                    Width="16" Height="16" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <MenuItem Header="_Refresh"
-                                  Command="{Binding RefreshClientCommand}"
-                                  HotKey="F5">
-                            <MenuItem.Icon>
-                                <PathIcon
-                                    Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
-                                    Width="16" Height="16" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <Separator />
-                        <MenuItem Header="_Browse Folder"
-                                  Command="{Binding BrowseFolderCommand}"
-                                  HotKey="Ctrl+B">
-                            <MenuItem.Icon>
-                                <PathIcon
-                                    Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"
-                                    Width="16" Height="16" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <Separator />
-                        <MenuItem Header="E_xit"
-                                  HotKey="Alt+F4"
-                                  Click="Exit_OnClick">
-                            <MenuItem.Icon>
-                                <PathIcon
-                                    Data="M19,3H5C3.89,3 3,3.89 3,5V9H5V5H19V19H5V15H3V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M10.08,15.58L11.5,17L16.5,12L11.5,7L10.08,8.41L12.67,11H3V13H12.67L10.08,15.58Z"
-                                    Width="16" Height="16" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                    </MenuItem>
-                </Menu>
-            </Grid>
-        </Border>
-        <DockPanel Margin="20" LastChildFill="True">
-            <!-- Top‐docked inputs -->
-            <StackPanel DockPanel.Dock="Top" Spacing="10">
-                <TextBlock Text="OpenAPI URL" />
-                <TextBox Text="{Binding Url}" />
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-                <TextBlock Text="Namespace" />
-                <TextBox Text="{Binding Namespace}" />
+        <!-- Title Bar with Custom Window Controls -->
+        <Grid Grid.Row="0" Background="black" x:Name="TitleBar">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-                <TextBlock Text="Api Client Name" />
-                <TextBox Text="{Binding ClientName}" />
+            <!-- Window Title -->
+            <TextBlock
+                Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"
+                Margin="10,0,0,0"
+                Foreground="White" />
 
-                <StackPanel Orientation="Horizontal" Spacing="20">
-                    <TextBlock Text="Language" VerticalAlignment="Center" />
-                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding Language}" />
-                    <StackPanel x:Name="AccessModifierPanel"
-                                Orientation="Horizontal"
-                                Spacing="5"
-                                IsVisible="{Binding IsAccessModifierVisible}">
-                        <TextBlock Text="Access Modifier" VerticalAlignment="Center" />
-                        <ComboBox ItemsSource="{Binding AccessModifiers}"
-                                  SelectedItem="{Binding AccessModifier}" />
+            <!-- Custom Window Control Buttons -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <!-- Minimize Button -->
+                <Button x:Name="MinimizeButton"
+                        Width="46" Height="30"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTip.Tip="Minimize"
+                        Click="MinimizeButton_Click">
+                    <!-- <Path Data="M 0,0 H 10" -->
+                    <Rectangle
+                        Stroke="White"
+                        StrokeThickness="1"
+                        Stretch="Uniform"
+                        Width="10" Height="2" />
+                </Button>
+
+                <!-- Maximize/Restore Button -->
+                <Button x:Name="MaximizeButton"
+                        Width="46" Height="30"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTip.Tip="Maximize"
+                        Click="MaximizeButton_Click">
+                    <Path x:Name="MaximizeIcon"
+                          Data="M 0,0 H 10 V 10 H 0 Z"
+                          Stroke="White"
+                          StrokeThickness="2"
+                          Fill="Transparent"
+                          Stretch="Uniform"
+                          Width="10" Height="10" />
+                </Button>
+
+                <!-- Close Button -->
+                <Button x:Name="CloseButton"
+                        Width="46" Height="30"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTip.Tip="Close"
+                        Click="CloseButton_Click">
+                    <Path Data="M 0,0 L 10,10 M 0,10 L 10,0"
+                          Stroke="White"
+                          StrokeThickness="2"
+                          Stretch="Uniform"
+                          Width="10" Height="10" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <DockPanel Grid.Row="1">
+            <Border Height="48"
+                    DockPanel.Dock="Top"
+                    BoxShadow="0 1 2 0 #40000000">
+                <Grid>
+                    <Menu Background="Transparent" Margin="5,0">
+                        <MenuItem Header="_File">
+                            <MenuItem Header="_Generate"
+                                      Command="{Binding GenerateClientCommand}"
+                                      HotKey="Ctrl+G">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                                              Width="16" Height="16" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="_Update"
+                                      Command="{Binding UpdateClientCommand}"
+                                      HotKey="Ctrl+U">
+                                <MenuItem.Icon>
+                                    <PathIcon
+                                        Data="M21,10.12H14.22L16.96,7.3C14.23,4.6 9.81,4.5 7.08,7.2C4.35,9.91 4.35,14.28 7.08,17C9.81,19.7 14.23,19.7 16.96,17C18.32,15.65 19,14.08 19,12.1H21C21,14.08 20.12,16.65 18.36,18.39C14.85,21.87 9.15,21.87 5.64,18.39C2.14,14.92 2.11,9.28 5.62,5.81C9.13,2.34 14.76,2.34 18.27,5.81L21,3V10.12M12.5,8V12.25L16,14.33L15.28,15.54L11,13V8H12.5Z"
+                                        Width="16" Height="16" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="_Refresh"
+                                      Command="{Binding RefreshClientCommand}"
+                                      HotKey="F5">
+                                <MenuItem.Icon>
+                                    <PathIcon
+                                        Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
+                                        Width="16" Height="16" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="_Browse Folder"
+                                      Command="{Binding BrowseFolderCommand}"
+                                      HotKey="Ctrl+B">
+                                <MenuItem.Icon>
+                                    <PathIcon
+                                        Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"
+                                        Width="16" Height="16" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="E_xit"
+                                      HotKey="Alt+F4"
+                                      Click="Exit_OnClick">
+                                <MenuItem.Icon>
+                                    <PathIcon
+                                        Data="M19,3H5C3.89,3 3,3.89 3,5V9H5V5H19V19H5V15H3V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M10.08,15.58L11.5,17L16.5,12L11.5,7L10.08,8.41L12.67,11H3V13H12.67L10.08,15.58Z"
+                                        Width="16" Height="16" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </MenuItem>
+                    </Menu>
+                </Grid>
+            </Border>
+            <DockPanel Margin="20" LastChildFill="True">
+                <!-- Top‐docked inputs -->
+                <StackPanel DockPanel.Dock="Top" Spacing="10">
+                    <TextBlock Text="OpenAPI URL" />
+                    <TextBox Text="{Binding Url}" />
+
+                    <TextBlock Text="Namespace" />
+                    <TextBox Text="{Binding Namespace}" />
+
+                    <TextBlock Text="Api Client Name" />
+                    <TextBox Text="{Binding ClientName}" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="20">
+                        <TextBlock Text="Language" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding Language}" />
+                        <StackPanel x:Name="AccessModifierPanel"
+                                    Orientation="Horizontal"
+                                    Spacing="5"
+                                    IsVisible="{Binding IsAccessModifierVisible}">
+                            <TextBlock Text="Access Modifier" VerticalAlignment="Center" />
+                            <ComboBox ItemsSource="{Binding AccessModifiers}"
+                                      SelectedItem="{Binding AccessModifier}" />
+                        </StackPanel>
+                    </StackPanel>
+
+
+                    <TextBlock Text="Destination Folder" />
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBox Width="400" Text="{Binding DestinationFolder}" IsReadOnly="True" />
+                        <Button Content="Browse" Command="{Binding BrowseFolderCommand}" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Content="Generate Client" Command="{Binding GenerateClientCommand}"
+                                IsEnabled="{Binding IsGeneratorButtonEnabled}" />
+                        <Button Content="Update Client(Kiota Version)" Command="{Binding UpdateClientCommand}"
+                                IsEnabled="{Binding IsUpdateButtonEnabled}" />
+                        <Button Content="Refresh Client" Command="{Binding RefreshClientCommand}"
+                                IsEnabled="{Binding IsRefreshButtonEnabled}" />
                     </StackPanel>
                 </StackPanel>
+                <!-- Status label docked at top -->
+                <TextBlock DockPanel.Dock="Top" Text="Status:" Margin="10" />
 
-
-                <TextBlock Text="Destination Folder" />
-                <StackPanel Orientation="Horizontal" Spacing="5">
-                    <TextBox Width="400" Text="{Binding DestinationFolder}" IsReadOnly="True" />
-                    <Button Content="Browse" Command="{Binding BrowseFolderCommand}" />
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Content="Generate Client" Command="{Binding GenerateClientCommand}"
-                            IsEnabled="{Binding IsGeneratorButtonEnabled}" />
-                    <Button Content="Update Client(Kiota Version)" Command="{Binding UpdateClientCommand}"
-                            IsEnabled="{Binding IsUpdateButtonEnabled}" />
-                    <Button Content="Refresh Client" Command="{Binding RefreshClientCommand}"
-                            IsEnabled="{Binding IsRefreshButtonEnabled}" />
-                </StackPanel>
-            </StackPanel>
-            <!-- Status label docked at top -->
-            <TextBlock DockPanel.Dock="Top" Text="Status:" Margin="10" />
-
-            <!-- This ScrollViewer will be the LastChild and fill remaining space -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <TextBox
-                    Text="{Binding StatusText}"
-                    AcceptsReturn="True"
-                    IsReadOnly="True"
-                    TextWrapping="Wrap" />
-            </ScrollViewer>
+                <!-- This ScrollViewer will be the LastChild and fill remaining space -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBox
+                        Text="{Binding StatusText}"
+                        AcceptsReturn="True"
+                        IsReadOnly="True"
+                        TextWrapping="Wrap" />
+                </ScrollViewer>
+            </DockPanel>
         </DockPanel>
-    </DockPanel>
+    </Grid>
 </Window>
