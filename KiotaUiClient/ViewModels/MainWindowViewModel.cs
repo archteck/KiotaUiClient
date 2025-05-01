@@ -12,6 +12,7 @@ namespace KiotaUiClient.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
     private string _url = string.Empty;
 
     [ObservableProperty]
@@ -28,6 +29,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _accessModifier = "";
     
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsRefreshButtonEnabled))]
     private string _destinationFolder = string.Empty;
 
     [ObservableProperty]
@@ -37,6 +41,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private readonly KiotaService _kiotaService = new();
     public bool IsAccessModifierVisible => Language == "C#";
+    public bool IsGeneratorButtonEnabled => !(string.IsNullOrEmpty(DestinationFolder) || string.IsNullOrEmpty(Url));
+    public bool IsUpdateButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
+    public bool IsRefreshButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
 
     public MainWindowViewModel()
     {
