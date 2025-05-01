@@ -14,7 +14,7 @@ This application allows you to:
 1. Clone this repository
 2. Build and run the application using the .NET SDK or your preferred IDE
 
-git clone https://github.com/yourusername/KiotaUiClient.git
+git clone https://github.com/archteck/KiotaUiClient.git
 cd KiotaUiClient
 dotnet build
 dotnet run --project KiotaUiClient
