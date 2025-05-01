@@ -7,7 +7,13 @@
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     </PropertyGroup>
-
+    
+    <PropertyGroup>
+        <AssemblyTitle>Kiota UI Client</AssemblyTitle>
+        <Authors>ArchTeck</Authors>
+        <Product>Kiota UI Client</Product>
+    </PropertyGroup>
+    
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
     </ItemGroup>
