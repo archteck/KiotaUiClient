@@ -31,7 +31,7 @@ jobs:
       # 🗜️ Archive build on Windows
       - name: Archive build (Windows)
         if: matrix.os == 'windows-latest'
-        run: Compress-Archive -Path publish\* -DestinationPath KiotaUiClient-windows.zip
+        run: Compress-Archive -Path publish\* -DestinationPath KiotaUiClient-${{ matrix.os }}.zip
         shell: pwsh
       
       # 🗜️ Archive build on Linux/macOS
