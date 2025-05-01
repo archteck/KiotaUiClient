@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using KiotaUiClient.Models;
@@ -11,104 +10,106 @@ namespace KiotaUiClient.Services;
 
 public class KiotaService
 {
-    public async Task<string> GenerateClient(string url, string ns, string clientName, string language,
-        string accessModifier,
-        string destination, bool clean)
+    // Supported languages mapping
+    private static readonly Dictionary<string, string> LanguageCommands = new()
     {
-        string languageCommand;
-        switch (language)
-        {
-            case "C#":
-                languageCommand = "csharp";
-                break;
-            case "Go":
-                languageCommand = "go";
-                break;
-            case "Java":
-                languageCommand = "java";
-                break;
-            case "Php":
-                languageCommand = "php";
-                break;
-            case "Python":
-                languageCommand = "python";
-                break;
-            case "Ruby":
-                languageCommand = "ruby";
-                break;
-            case "Shell":
-                languageCommand = "shell";
-                break;
-            case "Swift":
-                languageCommand = "swift";
-                break;
-            case "TypeScript":
-                languageCommand = "typescript";
-                break;
-            default:
-                return "Invalid language";
-        }
+        { "C#", "csharp" },
+        { "Go", "go" },
+        { "Java", "java" },
+        { "Php", "php" },
+        { "Python", "python" },
+        { "Ruby", "ruby" },
+        { "Shell", "shell" },
+        { "Swift", "swift" },
+        { "TypeScript", "typescript" }
+    };
+
+    // Valid C# access modifiers
+    private static readonly HashSet<string> ValidCSharpAccessModifiers = new()
+    {
+        "Public",
+        "Internal",
+        "Protected"
+    };
+
+    public async Task<string> GenerateClient(
+        string url, 
+        string ns, 
+        string clientName, 
+        string language,
+        string accessModifier,
+        string destination, 
+        bool clean)
+    {
+        // Validate language
+        if (!LanguageCommands.TryGetValue(language, out var languageCommand))
+            return "Invalid language";
+
+        // Validate access modifier for C# 
+        if (language == "C#" && !string.IsNullOrEmpty(accessModifier) && 
+            !ValidCSharpAccessModifiers.Contains(accessModifier))
+            return "Invalid accessModifier";
+
         await EnsureKiotaInstalled();
-        destination = Path.GetFullPath(destination)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        // build the args array – no manual quotes needed
-        var arguments = new List<string>
+        
+        destination = NormalizePath(destination);
+        
+        // Build arguments
+        var arguments = BuildGenerateArguments(url, ns, clientName, languageCommand, destination, clean);
+        
+        // Add access modifier for C# if provided
+        if (language == "C#" && !string.IsNullOrEmpty(accessModifier))
         {
-            "generate",
-            "-d", url,
-            "-n", ns,
-            "-c", clientName,
-            "-l", languageCommand,
-            "-o", destination
-        };
-        if (clean)
-        {
-            arguments.Add("--clean-output");
-        }
-        if (language == "C#")
-        {
-            switch (accessModifier)
-            {
-                case "Public":
-                case "Internal":
-                case "Protected":
-                    break;
-                default:
-                    return "Invalid accessModifier";
-            }
             arguments.Add("--tam");
             arguments.Add(accessModifier);
         }
+        
         return await RunCommand("kiota", arguments.ToArray());
     }
 
     public async Task<string> UpdateClient(string destination)
     {
         await EnsureKiotaInstalled();
-        destination = Path.GetFullPath(destination)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        destination = NormalizePath(destination);
+        
         var arguments = new List<string>
         {
             "update",
             "-o", destination
         };
+        
         return await RunCommand("kiota", arguments.ToArray());
     }
 
-    public async Task<string> RefreshFromLock(string destination)
+    public async Task<string> RefreshFromLock(
+        string destination, 
+        string language = "", 
+        string accessModifier = "")
     {
         try
         {
             var lockPath = Path.Combine(destination, "kiota-lock.json");
-            if (!File.Exists(lockPath)) return "kiota-lock.json not found.";
+            if (!File.Exists(lockPath)) 
+                return "kiota-lock.json not found.";
 
             var json = await File.ReadAllTextAsync(lockPath);
             var data = JsonSerializer.Deserialize<KiotaLock>(json);
 
-            if (data is null || string.IsNullOrWhiteSpace(data.DescriptionLocation)) return "Invalid lock file.";
+            if (data is null || string.IsNullOrWhiteSpace(data.DescriptionLocation)) 
+                return "Invalid lock file.";
             
-            return await GenerateClient(data.DescriptionLocation, data.ClientNamespaceName, data.ClientClassName, data.Language,
-                data.TypeAccessModifier, destination, true);
+            // Use provided values or fall back to values from lock file
+            var languageToUse = string.IsNullOrEmpty(language) ? data.Language : language;
+            var accessModifierToUse = string.IsNullOrEmpty(accessModifier) ? data.TypeAccessModifier : accessModifier;
+            
+            return await GenerateClient(
+                data.DescriptionLocation, 
+                data.ClientNamespaceName, 
+                data.ClientClassName, 
+                languageToUse,
+                accessModifierToUse, 
+                destination, 
+                true);
         }
         catch (Exception ex)
         {
@@ -136,8 +137,8 @@ public class KiotaService
             CreateNoWindow = true,
         };
 
-        foreach (var a in args)
-            psi.ArgumentList.Add(a);
+        foreach (var arg in args)
+            psi.ArgumentList.Add(arg);
 
         using var proc = Process.Start(psi)!;
         var stdout = await proc.StandardOutput.ReadToEndAsync();
@@ -147,5 +148,37 @@ public class KiotaService
         return string.IsNullOrWhiteSpace(stderr)
             ? stdout
             : $"{stdout}\nERROR:\n{stderr}";
+    }
+    
+    private List<string> BuildGenerateArguments(
+        string url, 
+        string ns, 
+        string clientName, 
+        string languageCommand, 
+        string destination, 
+        bool clean)
+    {
+        var arguments = new List<string>
+        {
+            "generate",
+            "-d", url,
+            "-n", ns,
+            "-c", clientName,
+            "-l", languageCommand,
+            "-o", destination
+        };
+        
+        if (clean)
+        {
+            arguments.Add("--clean-output");
+        }
+        
+        return arguments;
+    }
+    
+    private string NormalizePath(string path)
+    {
+        return Path.GetFullPath(path)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 }

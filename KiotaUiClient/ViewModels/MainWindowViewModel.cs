@@ -77,6 +77,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task RefreshClient()
     {
         StatusText = "Refreshing from kiota-lock.json...";
-        StatusText = await _kiotaService.RefreshFromLock(DestinationFolder);
+        StatusText = await _kiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier);
     }
 }
