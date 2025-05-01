@@ -1,9 +1,17 @@
-﻿namespace KiotaUiClient.Models;
+﻿using System.Text.Json.Serialization;
+
+namespace KiotaUiClient.Models;
 
 public class KiotaLock
 {
-    public string descriptionLocation { get; set; } = string.Empty;
-    public string clientNamespaceName { get; set; } = string.Empty;
-    public string clientClassName { get; set; } = string.Empty;
-    public string typeAccessModifier { get; set; } = "Public";
+    [JsonPropertyName("descriptionLocation")]
+    public string DescriptionLocation { get; set; } = string.Empty;
+    [JsonPropertyName("clientNamespaceName")]
+    public string ClientNamespaceName { get; set; } = string.Empty;
+    [JsonPropertyName("clientClassName")]
+    public string ClientClassName { get; set; } = string.Empty;
+    [JsonPropertyName("language")]
+    public string Language { get; set; } = "CSharp";
+    [JsonPropertyName("typeAccessModifier")]
+    public string TypeAccessModifier { get; set; } = "Public";
 }

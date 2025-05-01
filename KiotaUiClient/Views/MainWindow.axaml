@@ -4,6 +4,7 @@
         xmlns:vm="clr-namespace:KiotaUiClient.ViewModels"
         x:Class="KiotaUiClient.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
         Width="600" Height="700"
         Title="Kiota Client Generator">
 
@@ -75,7 +76,7 @@
                 <Menu Background="Transparent" Margin="5,0">
                     <MenuItem Header="_File">
                         <MenuItem Header="_Generate"
-                                  Command="{Binding GenerateClient}"
+                                  Command="{Binding GenerateClientCommand}"
                                   HotKey="Ctrl+G">
                             <MenuItem.Icon>
                                 <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
@@ -83,7 +84,7 @@
                             </MenuItem.Icon>
                         </MenuItem>
                         <MenuItem Header="_Update"
-                                  Command="{Binding UpdateClient}"
+                                  Command="{Binding UpdateClientCommand}"
                                   HotKey="Ctrl+U">
                             <MenuItem.Icon>
                                 <PathIcon
@@ -92,7 +93,7 @@
                             </MenuItem.Icon>
                         </MenuItem>
                         <MenuItem Header="_Refresh"
-                                  Command="{Binding RefreshClient}"
+                                  Command="{Binding RefreshClientCommand}"
                                   HotKey="F5">
                             <MenuItem.Icon>
                                 <PathIcon
@@ -102,7 +103,7 @@
                         </MenuItem>
                         <Separator />
                         <MenuItem Header="_Browse Folder"
-                                  Command="{Binding BrowseFolder}"
+                                  Command="{Binding BrowseFolderCommand}"
                                   HotKey="Ctrl+B">
                             <MenuItem.Icon>
                                 <PathIcon
@@ -135,20 +136,31 @@
 
                 <TextBlock Text="Client Name" />
                 <TextBox Text="{Binding ClientName}" />
+                
+                <StackPanel Orientation="Horizontal" Spacing="20">
+                    <TextBlock Text="Language" />
+                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding Language}"/>
+                    <StackPanel x:Name="AccessModifierPanel"
+                                Orientation="Horizontal"
+                                Spacing="5"
+                                IsVisible="{Binding IsAccessModifierVisible}">
+                        <TextBlock Text="Access Modifier" />
+                        <ComboBox ItemsSource="{Binding AccessModifiers}"
+                                  SelectedItem="{Binding AccessModifier}" />
+                    </StackPanel>
+                </StackPanel>
 
-                <TextBlock Text="Access Modifier" />
-                <ComboBox SelectedItem="{Binding AccessModifier}" ItemsSource="{Binding AccessModifiers}" />
 
                 <TextBlock Text="Destination Folder" />
                 <StackPanel Orientation="Horizontal" Spacing="5">
                     <TextBox Width="400" Text="{Binding DestinationFolder}" IsReadOnly="True" />
-                    <Button Content="Browse" Command="{Binding BrowseFolder}" />
+                    <Button Content="Browse" Command="{Binding BrowseFolderCommand}" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Content="Generate" Command="{Binding GenerateClient}" />
-                    <Button Content="Update" Command="{Binding UpdateClient}" />
-                    <Button Content="Refresh" Command="{Binding RefreshClient}" />
+                    <Button Content="Generate" Command="{Binding GenerateClientCommand}" />
+                    <Button Content="Update" Command="{Binding UpdateClientCommand}" />
+                    <Button Content="Refresh" Command="{Binding RefreshClientCommand}" />
                 </StackPanel>
             </StackPanel>
             <!-- Status label docked at top -->

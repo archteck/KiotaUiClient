@@ -21,17 +21,22 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _clientName = string.Empty;
 
     [ObservableProperty]
-    private string _accessModifier = "Public";
-
+    [NotifyPropertyChangedFor(nameof(IsAccessModifierVisible))]
+    private string _language = "";
+    
+    [ObservableProperty]
+    private string _accessModifier = "";
+    
     [ObservableProperty]
     private string _destinationFolder = string.Empty;
 
     [ObservableProperty]
     private string _statusText = string.Empty;
-
-    public ObservableCollection<string> AccessModifiers { get; } = new(["Public", "Internal", "Protected"]);
+    public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby", "Shell", "Swift", "TypeScript"]);
+    public ObservableCollection<string> AccessModifiers { get; } = new(["","Public", "Internal", "Protected"]);
 
     private readonly KiotaService _kiotaService = new();
+    public bool IsAccessModifierVisible => Language == "C#";
 
     public MainWindowViewModel()
     {
@@ -58,7 +63,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task GenerateClient()
     {
         StatusText = "Generating client...";
-        StatusText = await _kiotaService.GenerateClient(Url, Namespace, ClientName, AccessModifier, DestinationFolder, clean: false);
+        StatusText = await _kiotaService.GenerateClient(Url, Namespace, ClientName,Language, AccessModifier, DestinationFolder, clean: false);
     }
 
     [RelayCommand]
