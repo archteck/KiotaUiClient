@@ -70,6 +70,7 @@ public class KiotaService
     public async Task<string> UpdateClient(string destination)
     {
         await EnsureKiotaInstalled();
+        await EnsureKiotaUpdated();
         destination = NormalizePath(destination);
         
         var arguments = new List<string>
@@ -124,6 +125,10 @@ public class KiotaService
         {
             await RunCommand("dotnet", "tool install --global Microsoft.OpenApi.Kiota");
         }
+    }
+    private async Task EnsureKiotaUpdated()
+    {
+            await RunCommand("dotnet", "tool update --global Microsoft.OpenApi.Kiota");
     }
 
     private async Task<string> RunCommand(string file, params string[] args)
