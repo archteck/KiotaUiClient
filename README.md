@@ -6,20 +6,22 @@ This application allows you to:
 - Update existing client code
 - Refresh client code from an existing kiota-lock.json file
 
+![image](https://github.com/user-attachments/assets/cf094356-5027-47f7-a8ef-4de78cecb317)
+
 ## Requirements
 - .NET 9.0
 - Microsoft.OpenAPI.Kiota (installed automatically by the application)
 
 ## Installation
+Download a Release for you OS (Windows/Mac/Linux) or build it yourself:
+
+Steps to build:
 1. Clone this repository
 2. Build and run the application using the .NET SDK or your preferred IDE
-
-git clone https://github.com/yourusername/KiotaUiClient.git
-cd KiotaUiClient
-dotnet build
-dotnet run --project KiotaUiClient
-
-![image](https://github.com/user-attachments/assets/8ff8d51b-d3fc-4d7d-8644-168b6344e95a)
+3. git clone https://github.com/archteck/KiotaUiClient.git
+4. cd KiotaUiClient
+5. dotnet build
+6. dotnet run --project KiotaUiClient
 
 ## Usage
 The application interface includes several fields that correspond to Kiota's command-line options:
@@ -52,14 +54,22 @@ The application interface includes several fields that correspond to Kiota's com
 2. Set the namespace (e.g., `Example.Api.Client`)
 3. Set the client name (e.g., `ExampleClient`)
 4. Select "C#" as the language
-5. Choose an access modifier (e.g., "Public")
+5. Choose an access modifier (e.g., "Public"), only if C#
 6. Select a destination folder
 7. Click "Generate Client"
+
+### Updating an Existing Client
+If you've previously generated a client and have a kiota-lock.json file:
+1. Select the folder containing your existing client code
+2. Click "Update Client(Kiota Version)"
 
 ### Refreshing an Existing Client
 If you've previously generated a client and have a kiota-lock.json file:
 1. Select the folder containing your existing client code
 2. Click "Refresh Client"
+
+##Disclaimer
+I don't own Kiota, Kiota is a Microsoft tool, this is just a UI to consume the tool, I think the tool is so good, but some people are more used to use UI to generate the API SDK/Client.
 
 ## License
 See the [LICENSE](LICENSE) file for details.
