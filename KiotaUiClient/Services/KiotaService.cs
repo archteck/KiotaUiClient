@@ -11,7 +11,7 @@ namespace KiotaUiClient.Services;
 public class KiotaService
 {
     // Supported languages mapping
-    private static readonly Dictionary<string, string> LanguageCommands = new()
+    private static readonly Dictionary<string, string> _languageCommands = new()
     {
         { "C#", "csharp" },
         { "Go", "go" },
@@ -25,7 +25,7 @@ public class KiotaService
     };
 
     // Valid C# access modifiers
-    private static readonly HashSet<string> ValidCSharpAccessModifiers = new()
+    private static readonly HashSet<string> _validCSharpAccessModifiers = new()
     {
         "Public",
         "Internal",
@@ -33,37 +33,37 @@ public class KiotaService
     };
 
     public async Task<string> GenerateClient(
-        string url, 
-        string ns, 
-        string clientName, 
+        string url,
+        string ns,
+        string clientName,
         string language,
         string accessModifier,
-        string destination, 
+        string destination,
         bool clean)
     {
         // Validate language
-        if (!LanguageCommands.TryGetValue(language, out var languageCommand))
+        if (!_languageCommands.TryGetValue(language, out var languageCommand))
             return "Invalid language";
 
-        // Validate access modifier for C# 
-        if (language == "C#" && !string.IsNullOrEmpty(accessModifier) && 
-            !ValidCSharpAccessModifiers.Contains(accessModifier))
+        // Validate access modifier for C#
+        if (language == "C#" && !string.IsNullOrEmpty(accessModifier) &&
+            !_validCSharpAccessModifiers.Contains(accessModifier))
             return "Invalid accessModifier";
 
         await EnsureKiotaInstalled();
-        
+
         destination = NormalizePath(destination);
-        
+
         // Build arguments
         var arguments = BuildGenerateArguments(url, ns, clientName, languageCommand, destination, clean);
-        
+
         // Add access modifier for C# if provided
         if (language == "C#" && !string.IsNullOrEmpty(accessModifier))
         {
             arguments.Add("--tam");
             arguments.Add(accessModifier);
         }
-        
+
         return await RunCommand("kiota", arguments.ToArray());
     }
 
@@ -72,44 +72,45 @@ public class KiotaService
         await EnsureKiotaInstalled();
         await EnsureKiotaUpdated();
         destination = NormalizePath(destination);
-        
+
         var arguments = new List<string>
         {
             "update",
+            "--cc",
             "-o", destination
         };
-        
+
         return await RunCommand("kiota", arguments.ToArray());
     }
 
     public async Task<string> RefreshFromLock(
-        string destination, 
-        string language = "", 
+        string destination,
+        string language = "",
         string accessModifier = "")
     {
         try
         {
             var lockPath = Path.Combine(destination, "kiota-lock.json");
-            if (!File.Exists(lockPath)) 
+            if (!File.Exists(lockPath))
                 return "kiota-lock.json not found.";
 
             var json = await File.ReadAllTextAsync(lockPath);
             var data = JsonSerializer.Deserialize<KiotaLock>(json);
 
-            if (data is null || string.IsNullOrWhiteSpace(data.DescriptionLocation)) 
+            if (data is null || string.IsNullOrWhiteSpace(data.DescriptionLocation))
                 return "Invalid lock file.";
-            
+
             // Use provided values or fall back to values from lock file
             var languageToUse = string.IsNullOrEmpty(language) ? data.Language : language;
             var accessModifierToUse = string.IsNullOrEmpty(accessModifier) ? data.TypeAccessModifier : accessModifier;
-            
+
             return await GenerateClient(
-                data.DescriptionLocation, 
-                data.ClientNamespaceName, 
-                data.ClientClassName, 
+                data.DescriptionLocation,
+                data.ClientNamespaceName,
+                data.ClientClassName,
                 languageToUse,
-                accessModifierToUse, 
-                destination, 
+                accessModifierToUse,
+                destination,
                 true);
         }
         catch (Exception ex)
@@ -154,13 +155,13 @@ public class KiotaService
             ? stdout
             : $"{stdout}\nERROR:\n{stderr}";
     }
-    
+
     private List<string> BuildGenerateArguments(
-        string url, 
-        string ns, 
-        string clientName, 
-        string languageCommand, 
-        string destination, 
+        string url,
+        string ns,
+        string clientName,
+        string languageCommand,
+        string destination,
         bool clean)
     {
         var arguments = new List<string>
@@ -170,17 +171,18 @@ public class KiotaService
             "-n", ns,
             "-c", clientName,
             "-l", languageCommand,
-            "-o", destination
+            "-o", destination,
+            "--cc"
         };
-        
+
         if (clean)
         {
             arguments.Add("--clean-output");
         }
-        
+
         return arguments;
     }
-    
+
     private string NormalizePath(string path)
     {
         return Path.GetFullPath(path)
