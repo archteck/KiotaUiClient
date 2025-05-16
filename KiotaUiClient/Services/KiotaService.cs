@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+
 using KiotaUiClient.Models;
 
 namespace KiotaUiClient.Services;
@@ -19,7 +20,6 @@ public class KiotaService
         { "Php", "php" },
         { "Python", "python" },
         { "Ruby", "ruby" },
-        { "Shell", "shell" },
         { "Swift", "swift" },
         { "TypeScript", "typescript" }
     };
@@ -50,15 +50,27 @@ public class KiotaService
             !_validCSharpAccessModifiers.Contains(accessModifier))
             return "Invalid accessModifier";
 
+        return await GenerateKiotaClient(url, ns, clientName, languageCommand, accessModifier, destination, clean);
+    }
+
+    private async Task<string> GenerateKiotaClient(
+        string url,
+        string ns,
+        string clientName,
+        string language,
+        string accessModifier,
+        string destination,
+        bool clean)
+    {
         await EnsureKiotaInstalled();
 
         destination = NormalizePath(destination);
 
         // Build arguments
-        var arguments = BuildGenerateArguments(url, ns, clientName, languageCommand, destination, clean);
+        var arguments = BuildGenerateArguments(url, ns, clientName, language, destination, clean);
 
         // Add access modifier for C# if provided
-        if (language == "C#" && !string.IsNullOrEmpty(accessModifier))
+        if (language == "csharp" && !string.IsNullOrEmpty(accessModifier))
         {
             arguments.Add("--tam");
             arguments.Add(accessModifier);
@@ -66,6 +78,7 @@ public class KiotaService
 
         return await RunCommand("kiota", arguments.ToArray());
     }
+
 
     public async Task<string> UpdateClient(string destination)
     {
@@ -101,14 +114,22 @@ public class KiotaService
                 return "Invalid lock file.";
 
             // Use provided values or fall back to values from lock file
-            var languageToUse = string.IsNullOrEmpty(language) ? data.Language : language;
-            var accessModifierToUse = string.IsNullOrEmpty(accessModifier) ? data.TypeAccessModifier : accessModifier;
+            if (GetLanguageToUse(language, data, out var languageToUse, out var refreshFromLock))
+            {
+                return refreshFromLock;
+            }
 
-            return await GenerateClient(
+            if (GetAccessModifierToUse(language, accessModifier, data, out var accessModifierToUse,
+                    out var invalidAccessModifier))
+            {
+                return invalidAccessModifier;
+            }
+
+            return await GenerateKiotaClient(
                 data.DescriptionLocation,
                 data.ClientNamespaceName,
                 data.ClientClassName,
-                languageToUse,
+                languageToUse!,
                 accessModifierToUse,
                 destination,
                 true);
@@ -119,6 +140,48 @@ public class KiotaService
         }
     }
 
+    private static bool GetAccessModifierToUse(string language, string accessModifier, KiotaLock data,
+        out string accessModifierToUse, out string invalidAccessModifier)
+    {
+        accessModifierToUse = "";
+        invalidAccessModifier = "";
+        if (string.IsNullOrEmpty(accessModifier))
+        {
+            accessModifierToUse = data.TypeAccessModifier;
+        }
+        else
+        {
+            if (language == "csharp" && !_validCSharpAccessModifiers.Contains(accessModifier))
+            {
+                invalidAccessModifier = "Invalid accessModifier";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool GetLanguageToUse(string language, KiotaLock data, out string? languageToUse,
+        out string refreshFromLock)
+    {
+        languageToUse = "";
+        refreshFromLock = "";
+        if (string.IsNullOrEmpty(language))
+        {
+            languageToUse = data.Language.ToLower();
+        }
+        else
+        {
+            if (!_languageCommands.TryGetValue(language, out languageToUse))
+            {
+                refreshFromLock = "Invalid language";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private async Task EnsureKiotaInstalled()
     {
         var result = await RunCommand("dotnet", "tool list -g");
@@ -127,9 +190,10 @@ public class KiotaService
             await RunCommand("dotnet", "tool install --global Microsoft.OpenApi.Kiota");
         }
     }
+
     private async Task EnsureKiotaUpdated()
     {
-            await RunCommand("dotnet", "tool update --global Microsoft.OpenApi.Kiota");
+        await RunCommand("dotnet", "tool update --global Microsoft.OpenApi.Kiota");
     }
 
     private async Task<string> RunCommand(string file, params string[] args)
@@ -146,11 +210,44 @@ public class KiotaService
         foreach (var arg in args)
             psi.ArgumentList.Add(arg);
 
-        using var proc = Process.Start(psi)!;
-        var stdout = await proc.StandardOutput.ReadToEndAsync();
-        var stderr = await proc.StandardError.ReadToEndAsync();
-        await proc.WaitForExitAsync();
 
+        var outputBuilder = new System.Text.StringBuilder();
+        var errorBuilder = new System.Text.StringBuilder();
+
+        using (  var proc = Process.Start(psi)!)
+        {
+            // Asynchronously read standard output and standard error
+            var outputTask = Task.Run(() =>
+            {
+                using var reader = proc.StandardOutput; // Use the captured proc here
+                while (!reader.EndOfStream)
+                {
+                    var line = reader.ReadLine();
+                    if (line != null)
+                    {
+                        outputBuilder.AppendLine(line);
+                    }
+                }
+            });
+
+            var errorTask = Task.Run(() =>
+            {
+                using var reader = proc.StandardError; // Use the captured proc here
+                while (!reader.EndOfStream)
+                {
+                    var line = reader.ReadLine();
+                    if (line != null)
+                    {
+                        errorBuilder.AppendLine(line);
+                    }
+                }
+            });
+
+            await Task.WhenAll(outputTask, errorTask, proc.WaitForExitAsync());
+        }
+
+        var stdout = outputBuilder.ToString();
+        var stderr = errorBuilder.ToString();
         return string.IsNullOrWhiteSpace(stderr)
             ? stdout
             : $"{stdout}\nERROR:\n{stderr}";
