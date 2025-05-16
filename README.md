@@ -68,7 +68,7 @@ If you've previously generated a client and have a kiota-lock.json file:
 1. Select the folder containing your existing client code
 2. Click "Refresh Client"
 
-##Disclaimer
+### Disclaimer
 I don't own Kiota, Kiota is a Microsoft tool, this is just a UI to consume the tool, I think the tool is so good, but some people are more used to use UI to generate the API SDK/Client.
 
 ## License
