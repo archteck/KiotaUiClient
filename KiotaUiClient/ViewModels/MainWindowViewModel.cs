@@ -24,10 +24,10 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAccessModifierVisible))]
     private string _language = "";
-    
+
     [ObservableProperty]
     private string _accessModifier = "";
-    
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
     [NotifyPropertyChangedFor(nameof(IsUpdateButtonEnabled))]
@@ -36,7 +36,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _statusText = string.Empty;
-    public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby", "Shell", "Swift", "TypeScript"]);
+    public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Swift", "TypeScript"]);
     public ObservableCollection<string> AccessModifiers { get; } = new(["","Public", "Internal", "Protected"]);
 
     private readonly KiotaService _kiotaService = new();
@@ -44,10 +44,6 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool IsGeneratorButtonEnabled => !(string.IsNullOrEmpty(DestinationFolder) || string.IsNullOrEmpty(Url));
     public bool IsUpdateButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
     public bool IsRefreshButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
-
-    public MainWindowViewModel()
-    {
-    }
 
     [RelayCommand]
     private async Task BrowseFolder()
@@ -60,7 +56,7 @@ public partial class MainWindowViewModel : ViewModelBase
             AllowMultiple = false
         });
 
-        if (folder?.Count > 0)
+        if (folder.Count > 0)
         {
             DestinationFolder = folder[0].Path.LocalPath;
         }
