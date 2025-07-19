@@ -29,7 +29,7 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet publish KiotaUiClient/KiotaUiClient.csproj -c Release -o publish --self-contained true -p:PublishSingleFile=true -r ${{ matrix.os == 'windows-latest' && 'win-x64' || matrix.os == 'ubuntu-latest' && 'linux-x64' || 'osx-x64' }}
+        run: dotnet publish src/KiotaUiClient/KiotaUiClient.csproj -c Release -o publish --self-contained true -p:PublishSingleFile=true -r ${{ matrix.os == 'windows-latest' && 'win-x64' || matrix.os == 'ubuntu-latest' && 'linux-x64' || 'osx-x64' }}
   
       # 🗜️ Archive build on Windows
       - name: Archive build (Windows)
