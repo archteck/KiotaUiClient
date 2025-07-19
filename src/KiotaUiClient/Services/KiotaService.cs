@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
+﻿using System.Diagnostics;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 using KiotaUiClient.Models;
 
@@ -32,7 +28,7 @@ public class KiotaService
         "Protected"
     };
 
-    public async Task<string> GenerateClient(
+    public static async Task<string> GenerateClient(
         string url,
         string ns,
         string clientName,
@@ -53,7 +49,7 @@ public class KiotaService
         return await GenerateKiotaClient(url, ns, clientName, languageCommand, accessModifier, destination, clean);
     }
 
-    private async Task<string> GenerateKiotaClient(
+    private static async Task<string> GenerateKiotaClient(
         string url,
         string ns,
         string clientName,
@@ -80,7 +76,7 @@ public class KiotaService
     }
 
 
-    public async Task<string> UpdateClient(string destination)
+    public static async Task<string> UpdateClient(string destination)
     {
         await EnsureKiotaInstalled();
         await EnsureKiotaUpdated();
@@ -96,7 +92,7 @@ public class KiotaService
         return await RunCommand("kiota", arguments.ToArray());
     }
 
-    public async Task<string> RefreshFromLock(
+    public static async Task<string> RefreshFromLock(
         string destination,
         string language = "",
         string accessModifier = "")
@@ -168,7 +164,7 @@ public class KiotaService
         refreshFromLock = "";
         if (string.IsNullOrEmpty(language))
         {
-            languageToUse = data.Language.ToLower();
+            languageToUse = data.Language.ToLowerInvariant();
         }
         else
         {
@@ -182,7 +178,7 @@ public class KiotaService
         return false;
     }
 
-    private async Task EnsureKiotaInstalled()
+    private static async Task EnsureKiotaInstalled()
     {
         var result = await RunCommand("dotnet", "tool list -g");
         if (!result.Contains("Microsoft.OpenApi.Kiota"))
@@ -191,12 +187,12 @@ public class KiotaService
         }
     }
 
-    private async Task EnsureKiotaUpdated()
+    private static async Task EnsureKiotaUpdated()
     {
         await RunCommand("dotnet", "tool update --global Microsoft.OpenApi.Kiota");
     }
 
-    private async Task<string> RunCommand(string file, params string[] args)
+    private static async Task<string> RunCommand(string file, params string[] args)
     {
         var psi = new ProcessStartInfo
         {
@@ -253,7 +249,7 @@ public class KiotaService
             : $"{stdout}\nERROR:\n{stderr}";
     }
 
-    private List<string> BuildGenerateArguments(
+    private static List<string> BuildGenerateArguments(
         string url,
         string ns,
         string clientName,
@@ -280,7 +276,7 @@ public class KiotaService
         return arguments;
     }
 
-    private string NormalizePath(string path)
+    private static string NormalizePath(string path)
     {
         return Path.GetFullPath(path)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

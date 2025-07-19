@@ -1,5 +1,4 @@
 ﻿using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
@@ -66,20 +65,20 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task GenerateClient()
     {
         StatusText = "Generating client...";
-        StatusText = await _kiotaService.GenerateClient(Url, Namespace, ClientName,Language, AccessModifier, DestinationFolder, clean: false);
+        StatusText = await KiotaService.GenerateClient(Url, Namespace, ClientName,Language, AccessModifier, DestinationFolder, clean: false);
     }
 
     [RelayCommand]
     private async Task UpdateClient()
     {
         StatusText = "Updating client...";
-        StatusText = await _kiotaService.UpdateClient(DestinationFolder);
+        StatusText = await KiotaService.UpdateClient(DestinationFolder);
     }
 
     [RelayCommand]
     private async Task RefreshClient()
     {
         StatusText = "Refreshing from kiota-lock.json...";
-        StatusText = await _kiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier);
+        StatusText = await KiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier);
     }
 }

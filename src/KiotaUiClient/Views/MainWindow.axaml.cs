@@ -1,9 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+
+using Path = Avalonia.Controls.Shapes.Path;
 
 namespace KiotaUiClient.Views;
 
