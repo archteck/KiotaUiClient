@@ -1,6 +1,6 @@
 ﻿version: 2
 updates:
   - package-ecosystem: "nuget"
-    directory: "/src/KiotaUiClient/"
+    directory: "/src/KiotaUiClient"
     schedule:
       interval: "weekly"
