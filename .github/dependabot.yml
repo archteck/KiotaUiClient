@@ -1,24 +1,6 @@
 ﻿version: 2
 updates:
-  # dot net sdk update
-  - package-ecosystem: "dotnet-sdk"
-    directory: "/src/KiotaUiClient"
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"
-      day: "wednesday"
-    open-pull-requests-limit: 10
-    groups:
-      dotnet:
-        patterns:
-          - "*" # Prefer a single PR per solution update.
-  # NuGet packages
-  - package-ecosystem: "nuget"
-    directory: "/src/KiotaUiClient"
-    schedule:
-      interval: "weekly"
-      day: "wednesday"
-    open-pull-requests-limit: 25
-    groups:
-      dotnet:
-        patterns:
-          - "*"
