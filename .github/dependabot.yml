@@ -2,7 +2,7 @@
 updates:
   # dot net sdk update
   - package-ecosystem: "dotnet-sdk"
-    directory: "/"
+    directory: "/src/KiotaUiClient"
     schedule:
       interval: "weekly"
       day: "wednesday"
