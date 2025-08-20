@@ -1,7 +1,7 @@
 <Project>
   <ItemGroup>
     <!--    KiotaUiClient    -->
-    <PackageVersion Include="Avalonia" Version="11.3.2" />
+    <PackageVersion Include="Avalonia" Version="11.3.4" />
     <PackageVersion Include="Avalonia.Desktop" Version="11.3.2" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.2" />
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.2" />
