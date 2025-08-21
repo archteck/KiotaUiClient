@@ -11,9 +11,17 @@ updates:
       interval: "weekly"
       day: wednesday
     open-pull-requests-limit: 5
+    groups:
+      all-dotnet:
+        patterns:
+          - "*"
   - package-ecosystem: "nuget" # See documentation for possible values
     directory: "/src/KiotaUiClient" # Location of package manifests
     schedule:
       interval: "weekly"
       day: wednesday
     open-pull-requests-limit: 5
+    groups:
+      all-nuget:
+        patterns:
+          - "*"
