@@ -6,7 +6,7 @@
 version: 2
 updates:
   - package-ecosystem: "dotnet-sdk" # See documentation for possible values
-    directory: "/src/KiotaUiClient" # Location of package manifests
+    directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
       day: wednesday
@@ -16,7 +16,7 @@ updates:
         patterns:
           - "*"
   - package-ecosystem: "nuget" # See documentation for possible values
-    directory: "/src/KiotaUiClient" # Location of package manifests
+    directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
       day: wednesday
