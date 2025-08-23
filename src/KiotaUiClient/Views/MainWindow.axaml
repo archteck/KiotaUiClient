@@ -201,8 +201,24 @@
             <DockPanel Margin="20" LastChildFill="True">
                 <!-- Top‐docked inputs -->
                 <StackPanel DockPanel.Dock="Top" Spacing="10">
-                    <TextBlock Text="OpenAPI URL" />
-                    <TextBox Text="{Binding Url}" />
+                    <StackPanel Orientation="Horizontal" Spacing="15">
+                        <TextBlock Text="OpenAPI Source" VerticalAlignment="Center" />
+                        <RadioButton Content="URL" GroupName="OpenApiSource" IsChecked="True" />
+                        <RadioButton Content="File" GroupName="OpenApiSource" IsChecked="{Binding IsFileMode, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="UrlInputPanel" IsVisible="{Binding IsUrlMode}">
+                        <TextBlock Text="OpenAPI URL" />
+                        <TextBox Text="{Binding Url}" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="FileInputPanel" IsVisible="{Binding IsFileMode}">
+                        <TextBlock Text="OpenAPI File" />
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <TextBox Width="400" Text="{Binding Url}" IsReadOnly="True" />
+                            <Button Content="Browse" Command="{Binding BrowseOpenApiFileCommand}" />
+                        </StackPanel>
+                    </StackPanel>
 
                     <TextBlock Text="Namespace" />
                     <TextBox Text="{Binding Namespace}" />

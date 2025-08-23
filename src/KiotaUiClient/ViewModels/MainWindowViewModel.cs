@@ -15,6 +15,12 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _url = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUrlMode))]
+    private bool _isFileMode;
+
+    public bool IsUrlMode => !IsFileMode;
+
+    [ObservableProperty]
     private string _namespace = string.Empty;
 
     [ObservableProperty]
@@ -43,6 +49,28 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool IsGeneratorButtonEnabled => !(string.IsNullOrEmpty(DestinationFolder) || string.IsNullOrEmpty(Url));
     public bool IsUpdateButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
     public bool IsRefreshButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
+
+    [RelayCommand]
+    private async Task BrowseOpenApiFile()
+    {
+        var window = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (window is null) return;
+
+        var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            AllowMultiple = false,
+            Title = "Select OpenAPI specification",
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("OpenAPI Specs") { Patterns = ["*.json", "*.yaml", "*.yml"] }
+            }
+        });
+
+        if (files.Count > 0)
+        {
+            Url = files[0].Path.LocalPath;
+        }
+    }
 
     [RelayCommand]
     private async Task BrowseFolder()
