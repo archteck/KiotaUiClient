@@ -6,7 +6,7 @@ This application allows you to:
 - Update existing client code
 - Refresh client code from an existing kiota-lock.json file
 
-![image](https://github.com/user-attachments/assets/cf094356-5027-47f7-a8ef-4de78cecb317)
+<img width="600" height="708" alt="image" src="https://github.com/user-attachments/assets/98b65df4-3904-4b32-a43a-fee521cc3eda" />
 
 ## Requirements
 - .NET 9.0
