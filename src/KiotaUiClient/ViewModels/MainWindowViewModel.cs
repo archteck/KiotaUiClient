@@ -43,8 +43,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _statusText = string.Empty;
     public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Swift", "TypeScript"]);
     public ObservableCollection<string> AccessModifiers { get; } = new(["","Public", "Internal", "Protected"]);
-
-    private readonly KiotaService _kiotaService = new();
     public bool IsAccessModifierVisible => Language == "C#";
     public bool IsGeneratorButtonEnabled => !(string.IsNullOrEmpty(DestinationFolder) || string.IsNullOrEmpty(Url));
     public bool IsUpdateButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
