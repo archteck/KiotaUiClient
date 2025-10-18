@@ -7,10 +7,16 @@
     </PropertyGroup>
     
     <PropertyGroup>
-        <AssemblyTitle>Kiota UI Client</AssemblyTitle>
-        <Authors>ArchTeck</Authors>
-        <Product>Kiota UI Client</Product>
-    </PropertyGroup>
+    <AssemblyTitle>Kiota UI Client</AssemblyTitle>
+    <Authors>ArchTeck</Authors>
+    <Product>Kiota UI Client</Product>
+    <!-- App versioning -->
+    <!-- Set these to control the version shown in the app and used by the updater. -->
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <InformationalVersion>1.1.0</InformationalVersion>
+  </PropertyGroup>
     
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
