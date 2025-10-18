@@ -41,6 +41,25 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _statusText = string.Empty;
+
+    // App update related
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadAppUpdate))]
+    private string _latestVersion = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadAppUpdate))]
+    private bool _isUpdateAvailable;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadAppUpdate))]
+    private bool _isCheckingUpdate;
+
+    [ObservableProperty]
+    private double _downloadProgress; // 0..1
+
+    public bool CanDownloadAppUpdate => IsUpdateAvailable && !IsCheckingUpdate;
+
     public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Swift", "TypeScript"]);
     public ObservableCollection<string> AccessModifiers { get; } = new(["","Public", "Internal", "Protected"]);
     public bool IsAccessModifierVisible => Language == "C#";
@@ -106,5 +125,83 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         StatusText = "Refreshing from kiota-lock.json...";
         StatusText = await KiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier);
+    }
+
+    [RelayCommand]
+    private async Task CheckForAppUpdate()
+    {
+        try
+        {
+            IsCheckingUpdate = true;
+            StatusText = "Checking for app updates...";
+            var latest = await UpdateService.GetLatestReleaseAsync();
+            if (latest is null)
+            {
+                StatusText = "No suitable release asset found for your platform.";
+                IsUpdateAvailable = false;
+                LatestVersion = string.Empty;
+                return;
+            }
+            LatestVersion = latest.TagName;
+            IsUpdateAvailable = UpdateService.IsUpdateAvailable(latest.Version);
+            StatusText = IsUpdateAvailable
+                ? $"Update available: {latest.TagName} (asset: {latest.AssetName})."
+                : "You're on the latest version.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Update check failed: {ex.Message}";
+            IsUpdateAvailable = false;
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task DownloadAndRunUpdate()
+    {
+        try
+        {
+            StatusText = "Preparing download...";
+            var latest = await UpdateService.GetLatestReleaseAsync();
+            if (latest is null)
+            {
+                StatusText = "No suitable release asset found.";
+                return;
+            }
+            if (!UpdateService.IsUpdateAvailable(latest.Version))
+            {
+                StatusText = "Already up to date.";
+                return;
+            }
+
+            var progress = new Progress<double>(p => { DownloadProgress = p; });
+            var zipPath = await UpdateService.DownloadAssetAsync(latest.AssetDownloadUrl, progress);
+            StatusText = "Download complete. Extracting...";
+            var extractedDir = UpdateService.ExtractToNewFolder(zipPath, latest.TagName);
+            var exe = UpdateService.FindAppExecutable(extractedDir);
+            if (exe is null)
+            {
+                StatusText = $"Update extracted to {extractedDir}, but executable was not found.";
+                return;
+            }
+            var launched = UpdateService.TryLaunchAndExit(exe);
+            if (launched)
+            {
+                StatusText = "Launching updated version... The current application can be closed.";
+                // Optionally request close of current app
+                (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            }
+            else
+            {
+                StatusText = $"Update extracted to {extractedDir}. Please run the new application from that folder.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Update failed: {ex.Message}";
+        }
     }
 }

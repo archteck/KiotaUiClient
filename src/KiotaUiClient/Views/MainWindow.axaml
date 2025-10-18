@@ -254,6 +254,31 @@
                         <Button Content="Refresh Client" Command="{Binding RefreshClientCommand}"
                                 IsEnabled="{Binding IsRefreshButtonEnabled}" />
                     </StackPanel>
+
+                    <!-- Application Updater UI -->
+                    <Border Margin="0,10,0,0" Padding="10" BorderBrush="#555" BorderThickness="1" CornerRadius="6">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Application Updates" FontWeight="Bold" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Check for Updates"
+                                        Command="{Binding CheckForAppUpdateCommand}"/>
+                                <Button Content="Update and Relaunch"
+                                        Command="{Binding DownloadAndRunUpdateCommand}"
+                                        IsEnabled="{Binding CanDownloadAppUpdate}"/>
+                                <TextBlock Text="Latest:" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding LatestVersion}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="Update Status:" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Download:" VerticalAlignment="Center"/>
+                                <ProgressBar Minimum="0" Maximum="1" Value="{Binding DownloadProgress}" Width="200"/>
+                                <TextBlock Text="{Binding DownloadProgress, StringFormat={}{0:P0}}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
                 <!-- Status label docked at top -->
                 <TextBlock DockPanel.Dock="Top" Text="Status:" Margin="10" />
