@@ -12,10 +12,10 @@
         <Product>Kiota UI Client</Product>
         <!-- App versioning -->
         <!-- Set these to control the version shown in the app and used by the updater. -->
-        <Version>2.1.0</Version>
-        <AssemblyVersion>2.1.0.0</AssemblyVersion>
-        <FileVersion>2.1.0.0</FileVersion>
-        <InformationalVersion>2.1.0</InformationalVersion>
+        <Version>2.5.0</Version>
+        <AssemblyVersion>2.5.0.0</AssemblyVersion>
+        <FileVersion>2.5.0.0</FileVersion>
+        <InformationalVersion>2.5.0</InformationalVersion>
     </PropertyGroup>
 
     <ItemGroup>
