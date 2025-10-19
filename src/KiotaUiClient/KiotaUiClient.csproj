@@ -5,50 +5,36 @@
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     </PropertyGroup>
-    
-    <PropertyGroup>
-    <AssemblyTitle>Kiota UI Client</AssemblyTitle>
-    <Authors>ArchTeck</Authors>
-    <Product>Kiota UI Client</Product>
-    <!-- App versioning -->
-    <!-- Set these to control the version shown in the app and used by the updater. -->
-    <Version>2.5.0</Version>
-    <AssemblyVersion>2.5.0.0</AssemblyVersion>
-    <FileVersion>2.5.0.0</FileVersion>
-    <InformationalVersion>2.5.0</InformationalVersion>
-  </PropertyGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\KiotaUIUpdater\KiotaUIUpdater.csproj" />
-    </ItemGroup>
+    <PropertyGroup>
+        <AssemblyTitle>Kiota UI Client</AssemblyTitle>
+        <Authors>ArchTeck</Authors>
+        <Product>Kiota UI Client</Product>
+        <!-- App versioning -->
+        <!-- Set these to control the version shown in the app and used by the updater. -->
+        <Version>2.1.0</Version>
+        <AssemblyVersion>2.1.0.0</AssemblyVersion>
+        <FileVersion>2.1.0.0</FileVersion>
+        <InformationalVersion>2.1.0</InformationalVersion>
+    </PropertyGroup>
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
     </ItemGroup>
 
-    <Target Name="CopyUpdater" AfterTargets="Build">
-        <PropertyGroup>
-            <UpdaterExe>..\KiotaUpdater\bin\$(Configuration)\net9.0\KiotaUpdater.exe</UpdaterExe>
-        </PropertyGroup>
-        <Copy SourceFiles="$(UpdaterExe)"
-              DestinationFolder="$(OutDir)"
-              SkipUnchangedFiles="true"
-              Condition="Exists('$(UpdaterExe)')" />
-    </Target>
-
     <ItemGroup>
-        <PackageReference Include="Avalonia"  />
-        <PackageReference Include="Avalonia.Desktop"  />
-        <PackageReference Include="Avalonia.Themes.Fluent"  />
-        <PackageReference Include="Avalonia.Fonts.Inter"  />
+        <PackageReference Include="Avalonia"/>
+        <PackageReference Include="Avalonia.Desktop"/>
+        <PackageReference Include="Avalonia.Themes.Fluent"/>
+        <PackageReference Include="Avalonia.Fonts.Inter"/>
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-        <PackageReference Include="Avalonia.Diagnostics" >
+        <PackageReference Include="Avalonia.Diagnostics">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="CommunityToolkit.Mvvm"  />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+        <PackageReference Include="CommunityToolkit.Mvvm"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite"/>
     </ItemGroup>
 </Project>
