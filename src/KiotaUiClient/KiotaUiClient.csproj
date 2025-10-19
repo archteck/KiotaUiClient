@@ -19,7 +19,10 @@
   </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\KiotaUIUpdater\KiotaUIUpdater.csproj" />
+        <ProjectReference Include="..\KiotaUIUpdater\KiotaUIUpdater.csproj" >
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+        </ProjectReference>
     </ItemGroup>
 
     <ItemGroup>
