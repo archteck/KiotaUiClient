@@ -181,22 +181,15 @@ public partial class MainWindowViewModel : ViewModelBase
             var zipPath = await UpdateService.DownloadAssetAsync(latest.AssetDownloadUrl, progress);
             StatusText = "Download complete. Extracting...";
             var extractedDir = UpdateService.ExtractToNewFolder(zipPath, latest.TagName);
-            var exe = UpdateService.FindAppExecutable(extractedDir);
-            if (exe is null)
-            {
-                StatusText = $"Update extracted to {extractedDir}, but executable was not found.";
-                return;
-            }
-            var launched = UpdateService.TryLaunchAndExit(exe);
+            // Hand off to external updater which will copy files into current app folder and relaunch
+            var launched = UpdateService.StartUpdaterAndExit(extractedDir);
             if (launched)
             {
-                StatusText = "Launching updated version... The current application can be closed.";
-                // Optionally request close of current app
-                (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+                StatusText = "Updater launched. The application will close and restart after updating.";
             }
             else
             {
-                StatusText = $"Update extracted to {extractedDir}. Please run the new application from that folder.";
+                StatusText = $"Update extracted to {extractedDir}, but failed to start updater. Please update manually.";
             }
         }
         catch (Exception ex)

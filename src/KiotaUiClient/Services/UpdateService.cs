@@ -192,9 +192,9 @@ public static class UpdateService
         return target;
     }
 
-    public static string? FindAppExecutable(string directory)
+    public static string? FindAppUpdaterExecutable(string directory)
     {
-        var baseName = "KiotaUiClient";
+        var baseName = "KiotaUIUpdater";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var exe = Directory.EnumerateFiles(directory, baseName + ".exe", SearchOption.AllDirectories).FirstOrDefault();
@@ -203,21 +203,56 @@ public static class UpdateService
             return Directory.EnumerateFiles(directory, "*.exe", SearchOption.AllDirectories).FirstOrDefault();
         }
         // On Unix/Mac, the published artifact may be a binary without extension
-        var candidates = Directory.EnumerateFiles(directory, "*KiotaUiClient*", SearchOption.AllDirectories).ToList();
+        var candidates = Directory.EnumerateFiles(directory, "*KiotaUIUpdater*", SearchOption.AllDirectories).ToList();
         return candidates.FirstOrDefault();
     }
-
-    public static bool TryLaunchAndExit(string newExecutable, string? arguments = null)
+    public static bool StartUpdaterAndExit(string extractedDir)
     {
         try
         {
+            var sourceExePath = FindAppUpdaterExecutable(extractedDir);
+            if (sourceExePath is null) return false;
+            var ok = TryLaunchAndExit(extractedDir);
+            if (ok)
+            {
+                (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            }
+            return ok;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static bool TryLaunchAndExit(string extractedDir)
+    {
+        try
+        {
+            var appDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var currentExe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
+                             ?? Path.Combine(appDir, "KiotaUiClient.exe");
+            var updaterName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "KiotaUIUpdater.exe" : "KiotaUIUpdater";
+            var updaterSource = Path.Combine(extractedDir, updaterName);
+            var  updaterTarget = Path.Combine(appDir, updaterName);
+            if (!File.Exists(updaterSource))
+            {
+                // Updater must have been copied to app folder during build
+                return false;
+            }
+            File.Move(updaterSource, updaterTarget, overwrite: true);
+
+            var pid = Environment.ProcessId;
             var psi = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = newExecutable,
-                UseShellExecute = true
+                FileName = updaterTarget,
+                WorkingDirectory = appDir,
+                UseShellExecute = true,
+                Arguments = $"\"{extractedDir}\" \"{appDir}\" \"{currentExe}\" {pid}"
             };
-            if (!string.IsNullOrWhiteSpace(arguments)) psi.Arguments = arguments;
             System.Diagnostics.Process.Start(psi);
+            // Request app shutdown
+            (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
             return true;
         }
         catch
