@@ -33,15 +33,15 @@ jobs:
   
       - name: Publish Updater (Windows)
         if: matrix.os == 'windows-latest'
-        run: dotnet publish src/KiotaUIUpdater/KiotaUIUpdater.csproj -c Release -o publish --self-contained true -p:PublishSingleFile=true -r win-x64
+        run: dotnet publish src/KiotaUIUpdater/KiotaUIUpdater.csproj -c Release -o publish --self-contained true -p:PublishSingleFile=true -p:PublishAot=true -p:IlcOptimizationPreference=Size -p:InvariantGlobalization=true -p:StripSymbols=true -p:DebuggerSupport=false -p:EventSourceSupport=false -r win-x64
 
       - name: Publish Updater (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: dotnet publish src/KiotaUIUpdater/KiotaUIUpdater.csproj -c Release -o publish --self-contained true -p:PublishSingleFile=true -r linux-x64
+        run: dotnet publish src/KiotaUIUpdater/KiotaUIUpdater.csproj -c Release -o publish --self-contained true -p:PublishSingleFile=true -p:PublishAot=true -p:IlcOptimizationPreference=Size -p:InvariantGlobalization=true -p:StripSymbols=true -p:DebuggerSupport=false -p:EventSourceSupport=false -r linux-x64
 
       - name: Publish Updater (macOS)
         if: matrix.os == 'macos-latest'
-        run: dotnet publish src/KiotaUIUpdater/KiotaUIUpdater.csproj -c Release -o publish --self-contained true -p:PublishSingleFile=true -r osx-x64
+        run: dotnet publish src/KiotaUIUpdater/KiotaUIUpdater.csproj -c Release -o publish --self-contained true -p:PublishSingleFile=true -p:PublishAot=true -p:IlcOptimizationPreference=Size -p:InvariantGlobalization=true -p:StripSymbols=true -p:DebuggerSupport=false -p:EventSourceSupport=false -r osx-x64
   
       # 🗜️ Archive build on Windows
       - name: Archive build (Windows)
