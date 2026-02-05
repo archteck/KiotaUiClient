@@ -9,7 +9,7 @@ This application allows you to:
 <img width="600" height="708" alt="image" src="https://github.com/user-attachments/assets/98b65df4-3904-4b32-a43a-fee521cc3eda" />
 
 ## Requirements
-- .NET 9.0
+- .NET 10.0
 - Microsoft.OpenAPI.Kiota (installed automatically by the application)
 
 ## Installation
