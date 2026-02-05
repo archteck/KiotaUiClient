@@ -23,6 +23,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\KiotaUiClient.Core.Application\KiotaUiClient.Core.Application.csproj" />
+        <ProjectReference Include="..\KiotaUiClient.Infrastructure\KiotaUiClient.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Avalonia"/>
         <PackageReference Include="Avalonia.Desktop"/>
         <PackageReference Include="Avalonia.Themes.Fluent"/>
@@ -33,11 +38,11 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="CommunityToolkit.Mvvm"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug"/>
     </ItemGroup>
 </Project>

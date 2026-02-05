@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>KiotaUiClient.Core.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KiotaUiClient.Core.Domain\KiotaUiClient.Core.Domain.csproj" />
+  </ItemGroup>
+</Project>

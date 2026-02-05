@@ -1,15 +1,32 @@
 ﻿using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Platform.Storage;
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using KiotaUiClient.Services;
+using KiotaUiClient.Core.Application.Interfaces;
 
 namespace KiotaUiClient.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
+    private readonly IKiotaService _kiotaService;
+    private readonly IUpdateService _updateService;
+    private readonly ISettingsService _settingsService;
+    private readonly IUiService _uiService;
+
+    public MainWindowViewModel(
+        IKiotaService kiotaService,
+        IUpdateService updateService,
+        ISettingsService settingsService,
+        IUiService uiService)
+    {
+        _kiotaService = kiotaService;
+        _updateService = updateService;
+        _settingsService = settingsService;
+        _uiService = uiService;
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
     private string _url = string.Empty;
@@ -60,7 +77,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool CanDownloadAppUpdate => IsUpdateAvailable && !IsCheckingUpdate;
 
-    public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Swift", "TypeScript"]);
+    public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Shell", "Swift", "TypeScript"]);
     public ObservableCollection<string> AccessModifiers { get; } = new(["","Public", "Internal", "Protected"]);
     public bool IsAccessModifierVisible => Language == "C#";
     public bool IsGeneratorButtonEnabled => !(string.IsNullOrEmpty(DestinationFolder) || string.IsNullOrEmpty(Url));
@@ -70,39 +87,20 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseOpenApiFile()
     {
-        var window = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-        if (window is null) return;
-
-        var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var file = await _uiService.OpenFilePickerAsync("Select OpenAPI specification", ["*.json", "*.yaml", "*.yml"]);
+        if (file is not null)
         {
-            AllowMultiple = false,
-            Title = "Select OpenAPI specification",
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("OpenAPI Specs") { Patterns = ["*.json", "*.yaml", "*.yml"] }
-            }
-        });
-
-        if (files.Count > 0)
-        {
-            Url = files[0].Path.LocalPath;
+            Url = file;
         }
     }
 
     [RelayCommand]
     private async Task BrowseFolder()
     {
-        var window = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-        if (window is null) return;
-
-        var folder = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        var folder = await _uiService.OpenFolderPickerAsync("Select destination folder");
+        if (folder is not null)
         {
-            AllowMultiple = false
-        });
-
-        if (folder.Count > 0)
-        {
-            DestinationFolder = folder[0].Path.LocalPath;
+            DestinationFolder = folder;
         }
     }
 
@@ -110,21 +108,21 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task GenerateClient()
     {
         StatusText = "Generating client...";
-        StatusText = await KiotaService.GenerateClient(Url, Namespace, ClientName,Language, AccessModifier, DestinationFolder, clean: false);
+        StatusText = await _kiotaService.GenerateClient(Url, Namespace, ClientName,Language, AccessModifier, DestinationFolder, clean: false);
     }
 
     [RelayCommand]
     private async Task UpdateClient()
     {
         StatusText = "Updating client...";
-        StatusText = await KiotaService.UpdateClient(DestinationFolder);
+        StatusText = await _kiotaService.UpdateClient(DestinationFolder);
     }
 
     [RelayCommand]
     private async Task RefreshClient()
     {
         StatusText = "Refreshing from kiota-lock.json...";
-        StatusText = await KiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier);
+        StatusText = await _kiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier);
     }
 
     [RelayCommand]
@@ -134,7 +132,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             IsCheckingUpdate = true;
             StatusText = "Checking for app updates...";
-            var latest = await UpdateService.GetLatestReleaseAsync();
+            var latest = await _updateService.GetLatestReleaseAsync();
             if (latest is null)
             {
                 StatusText = "No suitable release asset found for your platform.";
@@ -143,7 +141,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 return;
             }
             LatestVersion = latest.TagName;
-            IsUpdateAvailable = UpdateService.IsUpdateAvailable(latest.Version);
+            IsUpdateAvailable = _updateService.IsUpdateAvailable(latest.Version);
             StatusText = IsUpdateAvailable
                 ? $"Update available: {latest.TagName} (asset: {latest.AssetName})."
                 : "You're on the latest version.";
@@ -165,24 +163,27 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             StatusText = "Preparing download...";
-            var latest = await UpdateService.GetLatestReleaseAsync();
+            var latest = await _updateService.GetLatestReleaseAsync();
             if (latest is null)
             {
                 StatusText = "No suitable release asset found.";
                 return;
             }
-            if (!UpdateService.IsUpdateAvailable(latest.Version))
+            if (!_updateService.IsUpdateAvailable(latest.Version))
             {
                 StatusText = "Already up to date.";
                 return;
             }
 
             var progress = new Progress<double>(p => { DownloadProgress = p; });
-            var zipPath = await UpdateService.DownloadAssetAsync(latest.AssetDownloadUrl, progress);
+            var zipPath = await _updateService.DownloadAssetAsync(latest.AssetDownloadUrl, progress);
             StatusText = "Download complete. Extracting...";
-            var extractedDir = UpdateService.ExtractToNewFolder(zipPath, latest.TagName);
+            var extractedDir = _updateService.ExtractToNewFolder(zipPath, latest.TagName);
             // Hand off to external updater which will copy files into current app folder and relaunch
-            var launched = UpdateService.StartUpdaterAndExit(extractedDir);
+            var launched = _updateService.StartUpdaterAndExit(extractedDir, () =>
+            {
+                (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            });
             if (launched)
             {
                 StatusText = "Updater launched. The application will close and restart after updating.";

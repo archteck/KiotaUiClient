@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace KiotaUiClient.Models;
+namespace KiotaUiClient.Core.Domain.Models;
 
 public class KiotaLock
 {

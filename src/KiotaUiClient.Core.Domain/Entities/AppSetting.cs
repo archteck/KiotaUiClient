@@ -1,4 +1,4 @@
-﻿namespace KiotaUiClient.Data;
+﻿namespace KiotaUiClient.Core.Domain.Entities;
 
 public class AppSetting
 {
