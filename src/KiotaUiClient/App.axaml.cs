@@ -2,12 +2,14 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 
+using KiotaUiClient.Core.Application.Interfaces;
 using KiotaUiClient.Infrastructure;
-using KiotaUiClient.Infrastructure.Data;
+using KiotaUiClient.Services;
 using KiotaUiClient.ViewModels;
 using KiotaUiClient.Views;
-using Microsoft.EntityFrameworkCore;
+
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace KiotaUiClient;
 
@@ -20,18 +22,15 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
-    public override void OnFrameworkInitializationCompleted()
+    public override async void OnFrameworkInitializationCompleted()
     {
         var serviceCollection = new ServiceCollection();
         ConfigureServices(serviceCollection);
         Services = serviceCollection.BuildServiceProvider();
 
-        // Ensure database is created and migrations applied
-        using (var scope = Services.CreateScope())
-        {
-            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            dbContext.Database.Migrate();
-        }
+        // Initialize infrastructure (migrations, etc)
+        var startupService = Services.GetRequiredService<IStartupService>();
+        await startupService.InitializeAsync();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -46,8 +45,18 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
+        // Logging
+        services.AddLogging(builder =>
+        {
+            builder.AddDebug();
+            builder.SetMinimumLevel(LogLevel.Debug);
+        });
+
         // Infrastructure
         services.AddInfrastructure();
+
+        // UI Services
+        services.AddSingleton<IUiService, UiService>();
 
         // ViewModels
         services.AddTransient<MainWindowViewModel>();

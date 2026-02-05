@@ -2,11 +2,18 @@
 using System.Text.Json;
 using KiotaUiClient.Core.Application.Interfaces;
 using KiotaUiClient.Core.Domain.Models;
+using Microsoft.Extensions.Logging;
 
 namespace KiotaUiClient.Infrastructure.Services;
 
 public class KiotaService : IKiotaService
 {
+    private readonly ILogger<KiotaService> _logger;
+
+    public KiotaService(ILogger<KiotaService> logger)
+    {
+        _logger = logger;
+    }
     // Supported languages mapping
     private static readonly Dictionary<string, string> _languageCommands = new()
     {

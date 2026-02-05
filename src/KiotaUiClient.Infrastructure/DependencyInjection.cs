@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<IKiotaService, KiotaService>();
         services.AddSingleton<IUpdateService, UpdateService>();
+        services.AddSingleton<IStartupService, StartupService>();
 
         return services;
     }

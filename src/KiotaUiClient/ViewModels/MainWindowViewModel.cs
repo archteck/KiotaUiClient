@@ -1,7 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Platform.Storage;
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KiotaUiClient.Core.Application.Interfaces;
@@ -13,15 +13,18 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IKiotaService _kiotaService;
     private readonly IUpdateService _updateService;
     private readonly ISettingsService _settingsService;
+    private readonly IUiService _uiService;
 
     public MainWindowViewModel(
         IKiotaService kiotaService,
         IUpdateService updateService,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        IUiService uiService)
     {
         _kiotaService = kiotaService;
         _updateService = updateService;
         _settingsService = settingsService;
+        _uiService = uiService;
     }
 
     [ObservableProperty]
@@ -84,39 +87,20 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseOpenApiFile()
     {
-        var window = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-        if (window is null) return;
-
-        var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var file = await _uiService.OpenFilePickerAsync("Select OpenAPI specification", ["*.json", "*.yaml", "*.yml"]);
+        if (file is not null)
         {
-            AllowMultiple = false,
-            Title = "Select OpenAPI specification",
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("OpenAPI Specs") { Patterns = ["*.json", "*.yaml", "*.yml"] }
-            }
-        });
-
-        if (files.Count > 0)
-        {
-            Url = files[0].Path.LocalPath;
+            Url = file;
         }
     }
 
     [RelayCommand]
     private async Task BrowseFolder()
     {
-        var window = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-        if (window is null) return;
-
-        var folder = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        var folder = await _uiService.OpenFolderPickerAsync("Select destination folder");
+        if (folder is not null)
         {
-            AllowMultiple = false
-        });
-
-        if (folder.Count > 0)
-        {
-            DestinationFolder = folder[0].Path.LocalPath;
+            DestinationFolder = folder;
         }
     }
 
