@@ -4,7 +4,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 
-using KiotaUiClient.Services;
+using KiotaUiClient.Core.Application.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace KiotaUiClient.Views;
 
@@ -13,7 +14,8 @@ using Path = Avalonia.Controls.Shapes.Path;
 
 public partial class MainWindow : Window
 {
-private Path? _maximizeIcon;
+    private readonly ISettingsService _settingsService;
+    private Path? _maximizeIcon;
     private Grid? _titleBar;
 
     // Guarda o último tamanho em estado Normal (para não salvar dimensões maximizadas).
@@ -24,9 +26,14 @@ private Path? _maximizeIcon;
     {
         InitializeComponent();
 
+        // In a real app we might want to inject this, but since Avalonia's XAML loader
+        // usually needs a parameterless constructor for some tools, we can resolve from App.
+        _settingsService = (Application.Current as App)?.Services?.GetRequiredService<ISettingsService>()
+                           ?? throw new InvalidOperationException("Services not initialized");
+
         // Carrega tamanho salvo (aplica mínimos).
-        var savedWidth = SettingsService.GetDouble("Window.Width", Width);
-        var savedHeight = SettingsService.GetDouble("Window.Height", Height);
+        var savedWidth = _settingsService.GetDouble("Window.Width", Width);
+        var savedHeight = _settingsService.GetDouble("Window.Height", Height);
         Width = Math.Max(600, savedWidth);
         Height = Math.Max(600, savedHeight);
 
@@ -141,8 +148,8 @@ private Path? _maximizeIcon;
         w = Math.Max(600, w);
         h = Math.Max(600, h);
 
-        SettingsService.SetDouble("Window.Width", w);
-        SettingsService.SetDouble("Window.Height", h);
+        _settingsService.SetDouble("Window.Width", w);
+        _settingsService.SetDouble("Window.Height", h);
     }
 
     private void Exit_OnClick(object sender, RoutedEventArgs e) => Close();

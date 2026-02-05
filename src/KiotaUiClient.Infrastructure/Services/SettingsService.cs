@@ -1,18 +1,23 @@
 ﻿using System.Globalization;
-
-using KiotaUiClient.Data;
-
+using KiotaUiClient.Core.Application.Interfaces;
+using KiotaUiClient.Core.Domain.Entities;
+using KiotaUiClient.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace KiotaUiClient.Services;
+namespace KiotaUiClient.Infrastructure.Services;
 
-public static class SettingsService
+public class SettingsService : ISettingsService
 {
-    static SettingsService() => AppDbContext.EnsureCreated();
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public static double GetDouble(string key, double defaultValue)
+    public SettingsService(IDbContextFactory<AppDbContext> dbFactory)
     {
-        using var ctx = new AppDbContext();
+        _dbFactory = dbFactory;
+    }
+
+    public double GetDouble(string key, double defaultValue)
+    {
+        using var ctx = _dbFactory.CreateDbContext();
         var entry = ctx.AppSettings.AsNoTracking().FirstOrDefault(s => s.Key == key);
         if (entry?.Value is null)
         {
@@ -27,9 +32,9 @@ public static class SettingsService
         return defaultValue;
     }
 
-    public static void SetDouble(string key, double value)
+    public void SetDouble(string key, double value)
     {
-        using var ctx = new AppDbContext();
+        using var ctx = _dbFactory.CreateDbContext();
         var entry = ctx.AppSettings.FirstOrDefault(s => s.Key == key);
         if (entry is null)
         {

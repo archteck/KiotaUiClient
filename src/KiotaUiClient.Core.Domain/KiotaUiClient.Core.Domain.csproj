@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>KiotaUiClient.Core.Domain</RootNamespace>
+  </PropertyGroup>
+</Project>

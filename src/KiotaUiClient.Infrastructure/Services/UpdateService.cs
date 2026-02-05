@@ -1,50 +1,53 @@
-﻿using System.IO.Compression;
+﻿using System.Diagnostics;
+using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using KiotaUiClient.Core.Application.Interfaces;
 
-namespace KiotaUiClient.Services;
+namespace KiotaUiClient.Infrastructure.Services;
 
-public static class UpdateService
+public class UpdateService : IUpdateService
 {
     private const string RepoOwner = "archteck";
     private const string RepoName = "KiotaUiClient";
-    private static readonly HttpClient _http = new HttpClient
-    {
-        Timeout = TimeSpan.FromSeconds(30)
-    };
+    private readonly HttpClient _http;
     private static readonly char[] _anyOf = ['-', '+'];
 
-    static UpdateService()
+    public UpdateService(HttpClient http)
     {
-        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("KiotaUiClient", GetCurrentVersionString()));
-        _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        _http = http;
+        if (_http.DefaultRequestHeaders.UserAgent.Count == 0)
+        {
+            _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("KiotaUiClient", GetCurrentVersionString()));
+        }
+        if (!_http.DefaultRequestHeaders.Accept.Any(x => x.MediaType == "application/vnd.github+json"))
+        {
+            _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        }
     }
 
-    private static string GetCurrentVersionString()
+    public string GetCurrentVersionString()
     {
-        // Try AssemblyInformationalVersionAttribute first (can carry semver tags from CI)
         var asm = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
         var infoAttr = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         if (!string.IsNullOrWhiteSpace(infoAttr))
         {
             return infoAttr;
         }
-        // Try AssemblyFileVersion
         var fileVer = asm.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version;
         if (!string.IsNullOrWhiteSpace(fileVer))
         {
             return fileVer!;
         }
-        // Try reading ProductVersion from the actual executable on disk
         try
         {
-            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
+            var exePath = Process.GetCurrentProcess().MainModule?.FileName
                           ?? Path.Combine(AppContext.BaseDirectory, AppDomain.CurrentDomain.FriendlyName);
             if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
             {
-                var fvi = System.Diagnostics.FileVersionInfo.GetVersionInfo(exePath);
+                var fvi = FileVersionInfo.GetVersionInfo(exePath);
                 if (!string.IsNullOrWhiteSpace(fvi.ProductVersion))
                     return fvi.ProductVersion!;
                 if (!string.IsNullOrWhiteSpace(fvi.FileVersion))
@@ -53,31 +56,27 @@ public static class UpdateService
         }
         catch
         {
-            // ignore and fall back
+            // ignore
         }
-        // Fallback to AssemblyName.Version (often 1.0.0.0 if not set explicitly)
         var ver = asm.GetName().Version;
         return ver?.ToString() ?? "0.0.0";
     }
 
     private static string SanitizeSemVer(string v)
     {
-        // Strip metadata/prerelease parts for System.Version parsing
         var idx = v.IndexOfAny(_anyOf);
         return idx > 0 ? v[..idx] : v;
     }
 
-    private static Version GetCurrentVersion()
+    private Version GetCurrentVersion()
     {
         var s = GetCurrentVersionString();
         s = SanitizeSemVer(s);
         if (Version.TryParse(s, out var v)) return v;
-        return new Version(0,0,0);
+        return new Version(0, 0, 0);
     }
 
-    public record ReleaseInfo(string TagName, string Name, Version Version, string AssetName, string AssetDownloadUrl);
-
-    public static async Task<ReleaseInfo?> GetLatestReleaseAsync(CancellationToken ct = default)
+    public async Task<ReleaseInfo?> GetLatestReleaseAsync(CancellationToken ct = default)
     {
         var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
         using var resp = await _http.GetAsync(url, ct);
@@ -88,7 +87,7 @@ public static class UpdateService
         var tag = root.GetProperty("tag_name").GetString() ?? "";
         var name = root.GetProperty("name").GetString() ?? tag;
         var version = ParseVersion(tag);
-        // pick asset
+
         var assetName = "";
         var assetUrl = "";
         if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
@@ -104,7 +103,6 @@ public static class UpdateService
                     break;
                 }
             }
-            // fallback: first zip
             if (string.IsNullOrEmpty(assetUrl))
             {
                 foreach (var a in assets.EnumerateArray())
@@ -128,12 +126,11 @@ public static class UpdateService
     {
         var t = tag.TrimStart('v', 'V');
         if (Version.TryParse(t, out var v)) return v;
-        return new Version(0,0,0,0);
+        return new Version(0, 0, 0, 0);
     }
 
     private static bool IsAssetForCurrentPlatform(string assetName)
     {
-        // Very simple heuristics by OS
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             return assetName.Contains("win", StringComparison.OrdinalIgnoreCase)
@@ -144,21 +141,20 @@ public static class UpdateService
             return (assetName.Contains("osx", StringComparison.OrdinalIgnoreCase) || assetName.Contains("mac", StringComparison.OrdinalIgnoreCase))
                    && assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
         }
-        // Linux
         return assetName.Contains("linux", StringComparison.OrdinalIgnoreCase)
                && assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static bool IsUpdateAvailable(Version latest) => latest > GetCurrentVersion();
+    public bool IsUpdateAvailable(Version latest) => latest > GetCurrentVersion();
 
-    public static string GetUpdatesRoot()
+    private static string GetUpdatesRoot()
     {
         var basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KiotaUiClient", "updates");
         Directory.CreateDirectory(basePath);
         return basePath;
     }
 
-    public static async Task<string> DownloadAssetAsync(string url, IProgress<double>? progress = null, CancellationToken ct = default)
+    public async Task<string> DownloadAssetAsync(string url, IProgress<double>? progress = null, CancellationToken ct = default)
     {
         var updates = GetUpdatesRoot();
         var file = Path.Combine(updates, Path.GetFileName(new Uri(url).AbsolutePath));
@@ -182,7 +178,7 @@ public static class UpdateService
         return file;
     }
 
-    public static string ExtractToNewFolder(string zipPath, string? versionLabel = null)
+    public string ExtractToNewFolder(string zipPath, string? versionLabel = null)
     {
         var parent = Path.GetDirectoryName(AppContext.BaseDirectory) ?? AppContext.BaseDirectory;
         var target = Path.Combine(parent, versionLabel ?? DateTime.Now.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture));
@@ -192,30 +188,29 @@ public static class UpdateService
         return target;
     }
 
-    public static string? FindAppUpdaterExecutable(string directory)
+    private static string? FindAppUpdaterExecutable(string directory)
     {
         var baseName = "KiotaUIUpdater";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var exe = Directory.EnumerateFiles(directory, baseName + ".exe", SearchOption.AllDirectories).FirstOrDefault();
             if (exe != null) return exe;
-            // fallback: any exe
             return Directory.EnumerateFiles(directory, "*.exe", SearchOption.AllDirectories).FirstOrDefault();
         }
-        // On Unix/Mac, the published artifact may be a binary without extension
         var candidates = Directory.EnumerateFiles(directory, "*KiotaUIUpdater*", SearchOption.AllDirectories).ToList();
         return candidates.FirstOrDefault();
     }
-    public static bool StartUpdaterAndExit(string extractedDir)
+
+    public bool StartUpdaterAndExit(string extractedDir, Action? shutdownAction = null)
     {
         try
         {
             var sourceExePath = FindAppUpdaterExecutable(extractedDir);
             if (sourceExePath is null) return false;
-            var ok = TryLaunchAndExit(extractedDir);
+            var ok = TryLaunchAndExit(extractedDir, shutdownAction);
             if (ok)
             {
-                (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+                shutdownAction?.Invoke();
             }
             return ok;
         }
@@ -225,34 +220,32 @@ public static class UpdateService
         }
     }
 
-    public static bool TryLaunchAndExit(string extractedDir)
+    private static bool TryLaunchAndExit(string extractedDir, Action? shutdownAction = null)
     {
         try
         {
             var appDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var currentExe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
+            var currentExe = Process.GetCurrentProcess().MainModule?.FileName
                              ?? Path.Combine(appDir, "KiotaUiClient.exe");
             var updaterName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "KiotaUIUpdater.exe" : "KiotaUIUpdater";
             var updaterSource = Path.Combine(extractedDir, updaterName);
-            var  updaterTarget = Path.Combine(appDir, updaterName);
+            var updaterTarget = Path.Combine(appDir, updaterName);
             if (!File.Exists(updaterSource))
             {
-                // Updater must have been copied to app folder during build
                 return false;
             }
             File.Move(updaterSource, updaterTarget, overwrite: true);
 
             var pid = Environment.ProcessId;
-            var psi = new System.Diagnostics.ProcessStartInfo
+            var psi = new ProcessStartInfo
             {
                 FileName = updaterTarget,
                 WorkingDirectory = appDir,
                 UseShellExecute = true,
                 Arguments = $"\"{extractedDir}\" \"{appDir}\" \"{currentExe}\" {pid}"
             };
-            System.Diagnostics.Process.Start(psi);
-            // Request app shutdown
-            (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            Process.Start(psi);
+            shutdownAction?.Invoke();
             return true;
         }
         catch

@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace KiotaUiClient.Migrations
+namespace KiotaUiClient.Infrastructure.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
