@@ -74,7 +74,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool CanDownloadAppUpdate => IsUpdateAvailable && !IsCheckingUpdate;
 
-    public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Swift", "TypeScript"]);
+    public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Shell", "Swift", "TypeScript"]);
     public ObservableCollection<string> AccessModifiers { get; } = new(["","Public", "Internal", "Protected"]);
     public bool IsAccessModifierVisible => Language == "C#";
     public bool IsGeneratorButtonEnabled => !(string.IsNullOrEmpty(DestinationFolder) || string.IsNullOrEmpty(Url));

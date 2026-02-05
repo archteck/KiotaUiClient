@@ -16,6 +16,7 @@ public class KiotaService : IKiotaService
         { "Php", "php" },
         { "Python", "python" },
         { "Ruby", "ruby" },
+        { "Shell", "shell" },
         { "Swift", "swift" },
         { "TypeScript", "typescript" }
     };
