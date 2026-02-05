@@ -3,7 +3,6 @@
              x:Class="KiotaUiClient.App"
              xmlns:local="using:KiotaUiClient"
              RequestedThemeVariant="Dark">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
         <local:ViewLocator/>

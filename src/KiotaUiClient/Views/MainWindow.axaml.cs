@@ -26,8 +26,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // In a real app we might want to inject this, but since Avalonia's XAML loader
-        // usually needs a parameterless constructor for some tools, we can resolve from App.
         _settingsService = (Application.Current as App)?.Services?.GetRequiredService<ISettingsService>()
                            ?? throw new InvalidOperationException("Services not initialized");
 
