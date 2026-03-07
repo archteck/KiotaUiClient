@@ -20,5 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\KiotaUiClient\KiotaUiClient.csproj" />
     <ProjectReference Include="..\..\src\KiotaUiClient.Core.Application\KiotaUiClient.Core.Application.csproj" />
+    <ProjectReference Include="..\..\src\KiotaUiClient.Infrastructure\KiotaUiClient.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
