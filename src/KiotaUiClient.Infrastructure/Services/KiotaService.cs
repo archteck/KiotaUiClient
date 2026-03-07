@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Text.Json;
+﻿using System.Text.Json;
 using KiotaUiClient.Core.Application.Interfaces;
 using KiotaUiClient.Core.Domain.Models;
 using Microsoft.Extensions.Logging;
@@ -9,15 +8,12 @@ namespace KiotaUiClient.Infrastructure.Services;
 public partial class KiotaService : IKiotaService
 {
     private readonly ILogger<KiotaService> _logger;
+    private readonly IProcessRunner _processRunner;
 
-    private readonly record struct CommandResult(int ExitCode, string StdOut, string StdErr)
-    {
-        public bool IsSuccess => ExitCode == 0;
-    }
-
-    public KiotaService(ILogger<KiotaService> logger)
+    public KiotaService(ILogger<KiotaService> logger, IProcessRunner processRunner)
     {
         _logger = logger;
+        _processRunner = processRunner;
     }
     // Supported languages mapping
     private static readonly Dictionary<string, string> _languageCommands = new()
@@ -225,10 +221,10 @@ public partial class KiotaService : IKiotaService
 
     public async Task EnsureKiotaInstalled(CancellationToken ct = default)
     {
-        var result = await RunCommand("dotnet", ct, "tool", "list", "-g");
+        var result = await _processRunner.ExecuteAsync("dotnet", ct, "tool", "list", "-g");
         if (!result.StdOut.Contains("Microsoft.OpenApi.Kiota", StringComparison.OrdinalIgnoreCase))
         {
-            var installResult = await RunCommand("dotnet", ct, "tool", "install", "--global", "Microsoft.OpenApi.Kiota");
+            var installResult = await _processRunner.ExecuteAsync("dotnet", ct, "tool", "install", "--global", "Microsoft.OpenApi.Kiota");
             if (!installResult.IsSuccess)
             {
                 var installFailure = BuildFailureResult("dotnet tool install --global Microsoft.OpenApi.Kiota", installResult);
@@ -240,7 +236,7 @@ public partial class KiotaService : IKiotaService
 
     public async Task EnsureKiotaUpdated(CancellationToken ct = default)
     {
-        var result = await RunCommand("dotnet", ct, "tool", "update", "--global", "Microsoft.OpenApi.Kiota");
+        var result = await _processRunner.ExecuteAsync("dotnet", ct, "tool", "update", "--global", "Microsoft.OpenApi.Kiota");
         if (!result.IsSuccess)
         {
             var updateFailure = BuildFailureResult("dotnet tool update --global Microsoft.OpenApi.Kiota", result);
@@ -248,76 +244,7 @@ public partial class KiotaService : IKiotaService
         }
     }
 
-    private async Task<CommandResult> RunCommand(string file, CancellationToken ct, params string[] args)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = file,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        foreach (var arg in args)
-            psi.ArgumentList.Add(arg);
-
-        var outputBuilder = new System.Text.StringBuilder();
-        var errorBuilder = new System.Text.StringBuilder();
-
-        using var proc = Process.Start(psi);
-        if (proc is null)
-        {
-            LogProcessStartFailed(file);
-            return new CommandResult(-1, string.Empty, $"Failed to start process '{file}'.");
-        }
-
-        var outputTask = Task.Run(() =>
-        {
-            using var reader = proc.StandardOutput;
-            while (!reader.EndOfStream)
-            {
-                ct.ThrowIfCancellationRequested();
-                var line = reader.ReadLine();
-                if (line != null)
-                {
-                    outputBuilder.AppendLine(line);
-                }
-            }
-        }, ct);
-
-        var errorTask = Task.Run(() =>
-        {
-            using var reader = proc.StandardError;
-            while (!reader.EndOfStream)
-            {
-                ct.ThrowIfCancellationRequested();
-                var line = reader.ReadLine();
-                if (line != null)
-                {
-                    errorBuilder.AppendLine(line);
-                }
-            }
-        }, ct);
-
-        try
-        {
-            await Task.WhenAll(outputTask, errorTask, proc.WaitForExitAsync(ct));
-        }
-        catch (OperationCanceledException)
-        {
-            if (!proc.HasExited)
-            {
-                proc.Kill(true);
-            }
-
-            throw;
-        }
-
-        return new CommandResult(proc.ExitCode, outputBuilder.ToString(), errorBuilder.ToString());
-    }
-
-    private static OperationResult BuildResult(string command, CommandResult result)
+    private static OperationResult BuildResult(string command, ProcessExecutionResult result)
     {
         if (result.IsSuccess)
         {
@@ -337,7 +264,7 @@ public partial class KiotaService : IKiotaService
         return BuildFailureResult(command, result);
     }
 
-    private static OperationResult BuildFailureResult(string command, CommandResult result)
+    private static OperationResult BuildFailureResult(string command, ProcessExecutionResult result)
     {
         var details = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
         details = string.IsNullOrWhiteSpace(details) ? "No details were provided by the process." : details.Trim();
@@ -379,8 +306,13 @@ public partial class KiotaService : IKiotaService
 
     private async Task<OperationResult> RunCommandAndFormatResult(string file, CancellationToken ct, params string[] args)
     {
-        var result = await RunCommand(file, ct, args);
+        var result = await _processRunner.ExecuteAsync(file, ct, args);
         var command = string.Join(' ', new[] { file }.Concat(args));
+
+        if (result.ExitCode == -1)
+        {
+            LogProcessStartFailed(file);
+        }
 
         if (!result.IsSuccess)
         {
