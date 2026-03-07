@@ -121,6 +121,60 @@ public sealed class MainWindowViewModelTests
         Assert.True(services.Kiota.GenerateClientCancellationObserved);
     }
 
+    [Fact]
+    public async Task CancelCurrentOperationCancelsInFlightUpdateOperation()
+    {
+        var services = new TestServices
+        {
+            Kiota =
+            {
+                BlockUpdateUntilCanceled = true
+            }
+        };
+
+        var vm = CreateViewModel(services);
+        vm.DestinationFolder = CreateTempDirectory();
+
+        var updateTask = vm.UpdateClientCommand.ExecuteAsync(null);
+
+        var operationStarted = await WaitUntilAsync(() => vm.CanCancelOperation, timeoutMs: 2000);
+        Assert.True(operationStarted);
+
+        vm.CancelCurrentOperationCommand.Execute(null);
+        await updateTask;
+
+        Assert.False(vm.HasError);
+        Assert.Equal("Operation canceled.", vm.StatusMessage);
+        Assert.True(services.Kiota.UpdateClientCancellationObserved);
+    }
+
+    [Fact]
+    public async Task CancelCurrentOperationCancelsInFlightRefreshOperation()
+    {
+        var services = new TestServices
+        {
+            Kiota =
+            {
+                BlockRefreshUntilCanceled = true
+            }
+        };
+
+        var vm = CreateViewModel(services);
+        vm.DestinationFolder = CreateTempDirectory();
+
+        var refreshTask = vm.RefreshClientCommand.ExecuteAsync(null);
+
+        var operationStarted = await WaitUntilAsync(() => vm.CanCancelOperation, timeoutMs: 2000);
+        Assert.True(operationStarted);
+
+        vm.CancelCurrentOperationCommand.Execute(null);
+        await refreshTask;
+
+        Assert.False(vm.HasError);
+        Assert.Equal("Operation canceled.", vm.StatusMessage);
+        Assert.True(services.Kiota.RefreshClientCancellationObserved);
+    }
+
     private static MainWindowViewModel CreateViewModel(TestServices services)
     {
         return new MainWindowViewModel(services.Kiota, services.Update, services.Settings, services.Ui);
@@ -162,6 +216,10 @@ public sealed class MainWindowViewModelTests
         public int GenerateClientCalls { get; private set; }
         public bool GenerateClientCancellationObserved { get; private set; }
         public bool BlockGenerateUntilCanceled { get; set; }
+        public bool BlockUpdateUntilCanceled { get; set; }
+        public bool UpdateClientCancellationObserved { get; private set; }
+        public bool BlockRefreshUntilCanceled { get; set; }
+        public bool RefreshClientCancellationObserved { get; private set; }
         public OperationResult GenerateClientResult { get; set; } = OperationResult.Success("Client generated.");
 
         public Task<OperationResult> GenerateClient(string url, string ns, string clientName, string language, string accessModifier,
@@ -195,14 +253,56 @@ public sealed class MainWindowViewModelTests
             => Task.FromResult(OperationResult.Success("Generated."));
 
         public Task<OperationResult> UpdateClient(string destination, CancellationToken ct = default)
-            => Task.FromResult(OperationResult.Success("Updated."));
+        {
+            if (!BlockUpdateUntilCanceled)
+            {
+                return Task.FromResult(OperationResult.Success("Updated."));
+            }
+
+            return WaitForUpdateCancellationAsync(ct);
+        }
 
         public Task<OperationResult> RefreshFromLock(string destination, string language = "", string accessModifier = "", CancellationToken ct = default)
-            => Task.FromResult(OperationResult.Success("Refreshed."));
+        {
+            if (!BlockRefreshUntilCanceled)
+            {
+                return Task.FromResult(OperationResult.Success("Refreshed."));
+            }
+
+            return WaitForRefreshCancellationAsync(ct);
+        }
 
         public Task EnsureKiotaInstalled(CancellationToken ct = default) => Task.CompletedTask;
 
         public Task EnsureKiotaUpdated(CancellationToken ct = default) => Task.CompletedTask;
+
+        private async Task<OperationResult> WaitForUpdateCancellationAsync(CancellationToken ct)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                return OperationResult.Success("Updated.");
+            }
+            catch (OperationCanceledException)
+            {
+                UpdateClientCancellationObserved = true;
+                throw;
+            }
+        }
+
+        private async Task<OperationResult> WaitForRefreshCancellationAsync(CancellationToken ct)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                return OperationResult.Success("Refreshed.");
+            }
+            catch (OperationCanceledException)
+            {
+                RefreshClientCancellationObserved = true;
+                throw;
+            }
+        }
     }
 
     private sealed class FakeUpdateService : IUpdateService
