@@ -1,5 +1,4 @@
-﻿#pragma warning disable CA1848
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -10,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace KiotaUiClient.Infrastructure.Services;
 
-public class UpdateService : IUpdateService
+public partial class UpdateService : IUpdateService
 {
     private const string RepoOwner = "archteck";
     private const string RepoName = "KiotaUiClient";
@@ -60,7 +59,7 @@ public class UpdateService : IUpdateService
         }
         catch
         {
-            _logger.LogDebug("Failed to read version information from process/executable metadata.");
+            LogVersionMetadataReadFailed();
         }
         var ver = asm.GetName().Version;
         return ver?.ToString() ?? "0.0.0";
@@ -215,7 +214,7 @@ public class UpdateService : IUpdateService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to start updater process from {ExtractedDir}", extractedDir);
+            LogStartUpdaterFailed(ex, extractedDir);
             return false;
         }
     }
@@ -250,9 +249,20 @@ public class UpdateService : IUpdateService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to launch updater for extracted directory {ExtractedDir}", extractedDir);
+            LogLaunchUpdaterFailed(ex, extractedDir);
             return false;
         }
     }
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Debug,
+        Message = "Failed to read version information from process/executable metadata.")]
+    private partial void LogVersionMetadataReadFailed();
+
+    [LoggerMessage(EventId = 2002, Level = LogLevel.Error,
+        Message = "Failed to start updater process from {ExtractedDir}")]
+    private partial void LogStartUpdaterFailed(Exception ex, string extractedDir);
+
+    [LoggerMessage(EventId = 2003, Level = LogLevel.Error,
+        Message = "Failed to launch updater for extracted directory {ExtractedDir}")]
+    private partial void LogLaunchUpdaterFailed(Exception ex, string extractedDir);
 }
-#pragma warning restore CA1848

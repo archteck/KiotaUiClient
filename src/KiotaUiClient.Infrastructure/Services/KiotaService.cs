@@ -1,5 +1,4 @@
-﻿#pragma warning disable CA1848
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using KiotaUiClient.Core.Application.Interfaces;
 using KiotaUiClient.Core.Domain.Models;
@@ -7,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace KiotaUiClient.Infrastructure.Services;
 
-public class KiotaService : IKiotaService
+public partial class KiotaService : IKiotaService
 {
     private readonly ILogger<KiotaService> _logger;
 
@@ -145,7 +144,7 @@ public class KiotaService : IKiotaService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to refresh client from lock file in destination {Destination}", destination);
+            LogRefreshFromLockFailed(ex, destination);
             return $"ERROR: {ex.Message}";
         }
     }
@@ -201,7 +200,7 @@ public class KiotaService : IKiotaService
             if (!installResult.IsSuccess)
             {
                 var installError = FormatError("dotnet tool install --global Microsoft.OpenApi.Kiota", installResult);
-                _logger.LogError("{Error}", installError);
+                LogKiotaInstallFailed(installError);
                 throw new InvalidOperationException(installError);
             }
         }
@@ -212,7 +211,7 @@ public class KiotaService : IKiotaService
         var result = await RunCommand("dotnet", "tool", "update", "--global", "Microsoft.OpenApi.Kiota");
         if (!result.IsSuccess)
         {
-            _logger.LogWarning("Failed to update Kiota tool: {Error}", FormatError("dotnet tool update --global Microsoft.OpenApi.Kiota", result));
+            LogKiotaUpdateFailed(FormatError("dotnet tool update --global Microsoft.OpenApi.Kiota", result));
         }
     }
 
@@ -236,7 +235,7 @@ public class KiotaService : IKiotaService
         using var proc = Process.Start(psi);
         if (proc is null)
         {
-            _logger.LogError("Failed to start process {FileName}", file);
+            LogProcessStartFailed(file);
             return new CommandResult(-1, string.Empty, $"Failed to start process '{file}'.");
         }
 
@@ -339,16 +338,39 @@ public class KiotaService : IKiotaService
         if (!result.IsSuccess)
         {
             var error = FormatError(command, result);
-            _logger.LogError("{Error}", error);
+            LogCommandFailed(error);
             return error;
         }
 
         if (!string.IsNullOrWhiteSpace(result.StdErr))
         {
-            _logger.LogWarning("Command {Command} completed with warnings: {Warnings}", command, result.StdErr.Trim());
+            LogCommandCompletedWithWarnings(command, result.StdErr.Trim());
         }
 
         return BuildUserMessage(command, result);
     }
+
+    [LoggerMessage(EventId = 1001, Level = LogLevel.Error,
+        Message = "Failed to refresh client from lock file in destination {Destination}")]
+    private partial void LogRefreshFromLockFailed(Exception ex, string destination);
+
+    [LoggerMessage(EventId = 1002, Level = LogLevel.Error,
+        Message = "Kiota install command failed: {Error}")]
+    private partial void LogKiotaInstallFailed(string error);
+
+    [LoggerMessage(EventId = 1003, Level = LogLevel.Warning,
+        Message = "Kiota update command failed: {Error}")]
+    private partial void LogKiotaUpdateFailed(string error);
+
+    [LoggerMessage(EventId = 1004, Level = LogLevel.Error,
+        Message = "Failed to start process {FileName}")]
+    private partial void LogProcessStartFailed(string fileName);
+
+    [LoggerMessage(EventId = 1005, Level = LogLevel.Error,
+        Message = "Command execution failed: {Error}")]
+    private partial void LogCommandFailed(string error);
+
+    [LoggerMessage(EventId = 1006, Level = LogLevel.Warning,
+        Message = "Command {Command} completed with warnings: {Warnings}")]
+    private partial void LogCommandCompletedWithWarnings(string command, string warnings);
 }
-#pragma warning restore CA1848
