@@ -8,3 +8,5 @@ public sealed record OperationResult(bool IsSuccess, string Message, string? Det
     public static OperationResult Failure(string message, string? details = null, int? exitCode = null)
         => new(false, message, details, exitCode);
 }
+
+public sealed record OperationResult<T>(bool IsSuccess, T? Value, string Message, string? Details = null, int? ExitCode = null);

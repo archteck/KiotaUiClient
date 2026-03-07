@@ -198,14 +198,18 @@ public partial class MainWindowViewModel : ViewModelBase
             IsCheckingUpdate = true;
             ErrorMessage = string.Empty;
             StatusMessage = "Checking for app updates...";
-            var latest = await _updateService.GetLatestReleaseAsync();
-            if (latest is null)
+            var latestResult = await _updateService.GetLatestReleaseAsync();
+            if (!latestResult.IsSuccess || latestResult.Value is null)
             {
-                StatusMessage = "No suitable release asset found for your platform.";
+                ErrorMessage = string.IsNullOrWhiteSpace(latestResult.Details)
+                    ? latestResult.Message
+                    : $"{latestResult.Message}\n{latestResult.Details}";
                 IsUpdateAvailable = false;
                 LatestVersion = string.Empty;
                 return;
             }
+
+            var latest = latestResult.Value;
             LatestVersion = latest.TagName;
             IsUpdateAvailable = _updateService.IsUpdateAvailable(latest.Version);
             StatusMessage = IsUpdateAvailable
@@ -236,12 +240,16 @@ public partial class MainWindowViewModel : ViewModelBase
             IsBusy = true;
             ErrorMessage = string.Empty;
             StatusMessage = "Preparing download...";
-            var latest = await _updateService.GetLatestReleaseAsync();
-            if (latest is null)
+            var latestResult = await _updateService.GetLatestReleaseAsync();
+            if (!latestResult.IsSuccess || latestResult.Value is null)
             {
-                ErrorMessage = "No suitable release asset found.";
+                ErrorMessage = string.IsNullOrWhiteSpace(latestResult.Details)
+                    ? latestResult.Message
+                    : $"{latestResult.Message}\n{latestResult.Details}";
                 return;
             }
+
+            var latest = latestResult.Value;
             if (!_updateService.IsUpdateAvailable(latest.Version))
             {
                 StatusMessage = "Already up to date.";
@@ -249,21 +257,40 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             var progress = new Progress<double>(p => { DownloadProgress = p; });
-            var zipPath = await _updateService.DownloadAssetAsync(latest.AssetDownloadUrl, progress);
+            var downloadResult = await _updateService.DownloadAssetAsync(latest.AssetDownloadUrl, progress);
+            if (!downloadResult.IsSuccess || string.IsNullOrWhiteSpace(downloadResult.Value))
+            {
+                ErrorMessage = string.IsNullOrWhiteSpace(downloadResult.Details)
+                    ? downloadResult.Message
+                    : $"{downloadResult.Message}\n{downloadResult.Details}";
+                return;
+            }
+
             StatusMessage = "Download complete. Extracting...";
-            var extractedDir = _updateService.ExtractToNewFolder(zipPath, latest.TagName);
+            var extractResult = _updateService.ExtractToNewFolder(downloadResult.Value, latest.TagName);
+            if (!extractResult.IsSuccess || string.IsNullOrWhiteSpace(extractResult.Value))
+            {
+                ErrorMessage = string.IsNullOrWhiteSpace(extractResult.Details)
+                    ? extractResult.Message
+                    : $"{extractResult.Message}\n{extractResult.Details}";
+                return;
+            }
+
+            var extractedDir = extractResult.Value;
             // Hand off to external updater which will copy files into current app folder and relaunch
-            var launched = _updateService.StartUpdaterAndExit(extractedDir, () =>
+            var launchedResult = _updateService.StartUpdaterAndExit(extractedDir, () =>
             {
                 (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
             });
-            if (launched)
+            if (launchedResult.IsSuccess)
             {
                 StatusMessage = "Updater launched. The application will close and restart after updating.";
             }
             else
             {
-                ErrorMessage = $"Update extracted to {extractedDir}, but failed to start updater. Please update manually.";
+                ErrorMessage = string.IsNullOrWhiteSpace(launchedResult.Details)
+                    ? launchedResult.Message
+                    : $"{launchedResult.Message}\n{launchedResult.Details}";
             }
         }
         catch (Exception ex)
