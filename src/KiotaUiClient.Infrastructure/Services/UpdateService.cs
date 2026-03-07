@@ -1,10 +1,12 @@
-﻿using System.Diagnostics;
+﻿#pragma warning disable CA1848
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using KiotaUiClient.Core.Application.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace KiotaUiClient.Infrastructure.Services;
 
@@ -13,11 +15,13 @@ public class UpdateService : IUpdateService
     private const string RepoOwner = "archteck";
     private const string RepoName = "KiotaUiClient";
     private readonly HttpClient _http;
+    private readonly ILogger<UpdateService> _logger;
     private static readonly char[] _anyOf = ['-', '+'];
 
-    public UpdateService(HttpClient http)
+    public UpdateService(HttpClient http, ILogger<UpdateService> logger)
     {
         _http = http;
+        _logger = logger;
         if (_http.DefaultRequestHeaders.UserAgent.Count == 0)
         {
             _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("KiotaUiClient", GetCurrentVersionString()));
@@ -56,7 +60,7 @@ public class UpdateService : IUpdateService
         }
         catch
         {
-            // ignore
+            _logger.LogDebug("Failed to read version information from process/executable metadata.");
         }
         var ver = asm.GetName().Version;
         return ver?.ToString() ?? "0.0.0";
@@ -207,20 +211,16 @@ public class UpdateService : IUpdateService
         {
             var sourceExePath = FindAppUpdaterExecutable(extractedDir);
             if (sourceExePath is null) return false;
-            var ok = TryLaunchAndExit(extractedDir, shutdownAction);
-            if (ok)
-            {
-                shutdownAction?.Invoke();
-            }
-            return ok;
+            return TryLaunchAndExit(extractedDir, shutdownAction);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to start updater process from {ExtractedDir}", extractedDir);
             return false;
         }
     }
 
-    private static bool TryLaunchAndExit(string extractedDir, Action? shutdownAction = null)
+    private bool TryLaunchAndExit(string extractedDir, Action? shutdownAction = null)
     {
         try
         {
@@ -248,9 +248,11 @@ public class UpdateService : IUpdateService
             shutdownAction?.Invoke();
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to launch updater for extracted directory {ExtractedDir}", extractedDir);
             return false;
         }
     }
 }
+#pragma warning restore CA1848

@@ -119,7 +119,7 @@
                                 <TextBlock Text="Latest Version:" VerticalAlignment="Center" FontSize="12"/>
                                 <TextBlock Text="{Binding LatestVersion}" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <ProgressBar Minimum="0" Maximum="1" Value="{Binding DownloadProgress}" Height="10" />
+                            <ProgressBar Minimum="0" Maximum="1" Value="{Binding DownloadProgress}" Height="10" IsVisible="{Binding IsBusy}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -130,6 +130,31 @@
             <!-- Logs Panel -->
             <DockPanel Grid.Column="2">
                 <TextBlock Text="Output Logs" Classes="Header" DockPanel.Dock="Top" />
+
+                <Border DockPanel.Dock="Top"
+                        Margin="0,0,0,10"
+                        Padding="8"
+                        BorderThickness="1"
+                        BorderBrush="#CC8B0000"
+                        Background="#20FF0000"
+                        CornerRadius="4"
+                        IsVisible="{Binding HasError}">
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#CC8B0000" TextWrapping="Wrap" />
+                </Border>
+
+                <Border DockPanel.Dock="Top"
+                        Margin="0,0,0,10"
+                        Padding="8"
+                        BorderThickness="1"
+                        BorderBrush="{DynamicResource SystemAccentColor}"
+                        CornerRadius="4"
+                        IsVisible="{Binding IsLoading}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Working..." />
+                        <ProgressBar IsIndeterminate="True" Height="6" />
+                    </StackPanel>
+                </Border>
+
                 <Border BorderBrush="#555" BorderThickness="1" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
                     <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
                         <TextBox Text="{Binding StatusText}"

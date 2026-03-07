@@ -2,6 +2,6 @@
 
 public interface ISettingsService
 {
-    double GetDouble(string key, double defaultValue);
-    void SetDouble(string key, double value);
+    Task<double> GetDoubleAsync(string key, double defaultValue);
+    Task SetDoubleAsync(string key, double value);
 }

@@ -28,19 +28,44 @@ public partial class App : Application
         ConfigureServices(serviceCollection);
         Services = serviceCollection.BuildServiceProvider();
 
-        // Initialize infrastructure (migrations, etc)
-        var startupService = Services.GetRequiredService<IStartupService>();
-        await startupService.InitializeAsync();
-
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        try
         {
-            desktop.MainWindow = new MainWindow
+            // Initialize infrastructure (migrations, etc)
+            var startupService = Services.GetRequiredService<IStartupService>();
+            await startupService.InitializeAsync();
+
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                DataContext = Services.GetRequiredService<MainWindowViewModel>(),
-            };
+                desktop.Exit += async (_, _) => { await DisposeServicesAsync(); };
+                desktop.MainWindow = new MainWindow
+                {
+                    DataContext = Services.GetRequiredService<MainWindowViewModel>(),
+                };
+            }
+        }
+        catch
+        {
+            await DisposeServicesAsync();
+            throw;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task DisposeServicesAsync()
+    {
+        if (Services is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+            Services = null;
+            return;
+        }
+
+        if (Services is IDisposable disposable)
+        {
+            disposable.Dispose();
+            Services = null;
+        }
     }
 
     private static void ConfigureServices(IServiceCollection services)

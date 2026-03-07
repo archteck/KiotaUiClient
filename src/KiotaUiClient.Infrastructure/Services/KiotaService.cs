@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿#pragma warning disable CA1848
+using System.Diagnostics;
 using System.Text.Json;
 using KiotaUiClient.Core.Application.Interfaces;
 using KiotaUiClient.Core.Domain.Models;
@@ -9,6 +10,11 @@ namespace KiotaUiClient.Infrastructure.Services;
 public class KiotaService : IKiotaService
 {
     private readonly ILogger<KiotaService> _logger;
+
+    private readonly record struct CommandResult(int ExitCode, string StdOut, string StdErr)
+    {
+        public bool IsSuccess => ExitCode == 0;
+    }
 
     public KiotaService(ILogger<KiotaService> logger)
     {
@@ -47,12 +53,12 @@ public class KiotaService : IKiotaService
     {
         // Validate language
         if (!_languageCommands.TryGetValue(language, out var languageCommand))
-            return "Invalid language";
+            return "ERROR: Invalid language.";
 
         // Validate access modifier for C#
         if (language == "C#" && !string.IsNullOrEmpty(accessModifier) &&
             !_validCSharpAccessModifiers.Contains(accessModifier))
-            return "Invalid accessModifier";
+            return "ERROR: Invalid access modifier.";
 
         return await GenerateKiotaClient(url, ns, clientName, languageCommand, accessModifier, destination, clean);
     }
@@ -80,7 +86,7 @@ public class KiotaService : IKiotaService
             arguments.Add(accessModifier);
         }
 
-        return await RunCommand("kiota", arguments.ToArray());
+        return await RunCommandAndFormatResult("kiota", arguments.ToArray());
     }
 
     public async Task<string> UpdateClient(string destination)
@@ -96,7 +102,7 @@ public class KiotaService : IKiotaService
             "-o", destination
         };
 
-        return await RunCommand("kiota", arguments.ToArray());
+        return await RunCommandAndFormatResult("kiota", arguments.ToArray());
     }
 
     public async Task<string> RefreshFromLock(
@@ -108,13 +114,13 @@ public class KiotaService : IKiotaService
         {
             var lockPath = Path.Combine(destination, "kiota-lock.json");
             if (!File.Exists(lockPath))
-                return "kiota-lock.json not found.";
+                return "ERROR: kiota-lock.json not found.";
 
             var json = await File.ReadAllTextAsync(lockPath);
             var data = JsonSerializer.Deserialize<KiotaLock>(json);
 
             if (data is null || string.IsNullOrWhiteSpace(data.DescriptionLocation))
-                return "Invalid lock file.";
+                return "ERROR: Invalid lock file.";
 
             // Use provided values or fall back to values from lock file
             if (GetLanguageToUse(language, data, out var languageToUse, out var refreshFromLock))
@@ -139,7 +145,8 @@ public class KiotaService : IKiotaService
         }
         catch (Exception ex)
         {
-            return $"Error: {ex.Message}";
+            _logger.LogError(ex, "Failed to refresh client from lock file in destination {Destination}", destination);
+            return $"ERROR: {ex.Message}";
         }
     }
 
@@ -156,7 +163,7 @@ public class KiotaService : IKiotaService
         {
             if (language == "csharp" && !_validCSharpAccessModifiers.Contains(accessModifier))
             {
-                invalidAccessModifier = "Invalid accessModifier";
+                invalidAccessModifier = "ERROR: Invalid access modifier.";
                 return true;
             }
         }
@@ -177,7 +184,7 @@ public class KiotaService : IKiotaService
         {
             if (!_languageCommands.TryGetValue(language, out languageToUse))
             {
-                refreshFromLock = "Invalid language";
+                refreshFromLock = "ERROR: Invalid language.";
                 return true;
             }
         }
@@ -187,19 +194,29 @@ public class KiotaService : IKiotaService
 
     public async Task EnsureKiotaInstalled()
     {
-        var result = await RunCommand("dotnet", "tool list -g");
-        if (!result.Contains("Microsoft.OpenApi.Kiota"))
+        var result = await RunCommand("dotnet", "tool", "list", "-g");
+        if (!result.StdOut.Contains("Microsoft.OpenApi.Kiota", StringComparison.OrdinalIgnoreCase))
         {
-            await RunCommand("dotnet", "tool install --global Microsoft.OpenApi.Kiota");
+            var installResult = await RunCommand("dotnet", "tool", "install", "--global", "Microsoft.OpenApi.Kiota");
+            if (!installResult.IsSuccess)
+            {
+                var installError = FormatError("dotnet tool install --global Microsoft.OpenApi.Kiota", installResult);
+                _logger.LogError("{Error}", installError);
+                throw new InvalidOperationException(installError);
+            }
         }
     }
 
     public async Task EnsureKiotaUpdated()
     {
-        await RunCommand("dotnet", "tool update --global Microsoft.OpenApi.Kiota");
+        var result = await RunCommand("dotnet", "tool", "update", "--global", "Microsoft.OpenApi.Kiota");
+        if (!result.IsSuccess)
+        {
+            _logger.LogWarning("Failed to update Kiota tool: {Error}", FormatError("dotnet tool update --global Microsoft.OpenApi.Kiota", result));
+        }
     }
 
-    private static async Task<string> RunCommand(string file, params string[] args)
+    private async Task<CommandResult> RunCommand(string file, params string[] args)
     {
         var psi = new ProcessStartInfo
         {
@@ -216,42 +233,69 @@ public class KiotaService : IKiotaService
         var outputBuilder = new System.Text.StringBuilder();
         var errorBuilder = new System.Text.StringBuilder();
 
-        using (var proc = Process.Start(psi)!)
+        using var proc = Process.Start(psi);
+        if (proc is null)
         {
-            var outputTask = Task.Run(() =>
-            {
-                using var reader = proc.StandardOutput;
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
-                    if (line != null)
-                    {
-                        outputBuilder.AppendLine(line);
-                    }
-                }
-            });
-
-            var errorTask = Task.Run(() =>
-            {
-                using var reader = proc.StandardError;
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
-                    if (line != null)
-                    {
-                        errorBuilder.AppendLine(line);
-                    }
-                }
-            });
-
-            await Task.WhenAll(outputTask, errorTask, proc.WaitForExitAsync());
+            _logger.LogError("Failed to start process {FileName}", file);
+            return new CommandResult(-1, string.Empty, $"Failed to start process '{file}'.");
         }
 
-        var stdout = outputBuilder.ToString();
-        var stderr = errorBuilder.ToString();
-        return string.IsNullOrWhiteSpace(stderr)
-            ? stdout
-            : $"{stdout}\nERROR:\n{stderr}";
+        var outputTask = Task.Run(() =>
+        {
+            using var reader = proc.StandardOutput;
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+                if (line != null)
+                {
+                    outputBuilder.AppendLine(line);
+                }
+            }
+        });
+
+        var errorTask = Task.Run(() =>
+        {
+            using var reader = proc.StandardError;
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+                if (line != null)
+                {
+                    errorBuilder.AppendLine(line);
+                }
+            }
+        });
+
+        await Task.WhenAll(outputTask, errorTask, proc.WaitForExitAsync());
+
+        return new CommandResult(proc.ExitCode, outputBuilder.ToString(), errorBuilder.ToString());
+    }
+
+    private static string BuildUserMessage(string command, CommandResult result)
+    {
+        if (result.IsSuccess)
+        {
+            if (!string.IsNullOrWhiteSpace(result.StdOut))
+            {
+                return result.StdOut.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.StdErr))
+            {
+                return $"Command completed with warnings.\n{result.StdErr.Trim()}";
+            }
+
+            return "Operation completed successfully.";
+        }
+
+        return FormatError(command, result);
+    }
+
+    private static string FormatError(string command, CommandResult result)
+    {
+        var details = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
+        details = string.IsNullOrWhiteSpace(details) ? "No details were provided by the process." : details.Trim();
+        return $"ERROR: Command '{command}' failed with exit code {result.ExitCode}.\n{details}";
     }
 
     private static List<string> BuildGenerateArguments(
@@ -286,4 +330,25 @@ public class KiotaService : IKiotaService
         return Path.GetFullPath(path)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
+
+    private async Task<string> RunCommandAndFormatResult(string file, params string[] args)
+    {
+        var result = await RunCommand(file, args);
+        var command = string.Join(' ', new[] { file }.Concat(args));
+
+        if (!result.IsSuccess)
+        {
+            var error = FormatError(command, result);
+            _logger.LogError("{Error}", error);
+            return error;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.StdErr))
+        {
+            _logger.LogWarning("Command {Command} completed with warnings: {Warnings}", command, result.StdErr.Trim());
+        }
+
+        return BuildUserMessage(command, result);
+    }
 }
+#pragma warning restore CA1848

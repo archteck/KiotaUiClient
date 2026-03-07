@@ -15,10 +15,10 @@ public class SettingsService : ISettingsService
         _dbFactory = dbFactory;
     }
 
-    public double GetDouble(string key, double defaultValue)
+    public async Task<double> GetDoubleAsync(string key, double defaultValue)
     {
-        using var ctx = _dbFactory.CreateDbContext();
-        var entry = ctx.AppSettings.AsNoTracking().FirstOrDefault(s => s.Key == key);
+        await using var ctx = await _dbFactory.CreateDbContextAsync();
+        var entry = await ctx.AppSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == key);
         if (entry?.Value is null)
         {
             return defaultValue;
@@ -32,10 +32,10 @@ public class SettingsService : ISettingsService
         return defaultValue;
     }
 
-    public void SetDouble(string key, double value)
+    public async Task SetDoubleAsync(string key, double value)
     {
-        using var ctx = _dbFactory.CreateDbContext();
-        var entry = ctx.AppSettings.FirstOrDefault(s => s.Key == key);
+        await using var ctx = await _dbFactory.CreateDbContextAsync();
+        var entry = await ctx.AppSettings.FirstOrDefaultAsync(s => s.Key == key);
         if (entry is null)
         {
             entry = new AppSetting { Key = key, Value = value.ToString(CultureInfo.InvariantCulture) };
@@ -46,6 +46,6 @@ public class SettingsService : ISettingsService
             entry.Value = value.ToString(CultureInfo.InvariantCulture);
         }
 
-        ctx.SaveChanges();
+        await ctx.SaveChangesAsync();
     }
 }
