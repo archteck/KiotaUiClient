@@ -3,7 +3,8 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>KiotaUIUpdater</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
-    <PublishAot>true</PublishAot>
+    <PublishAot Condition="'$(Configuration)' == 'Release'">true</PublishAot>
+    <PublishAot Condition="'$(Configuration)' != 'Release'">false</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <StripSymbols>true</StripSymbols>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>

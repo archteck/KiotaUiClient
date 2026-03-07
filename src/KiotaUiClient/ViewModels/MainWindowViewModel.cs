@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 
@@ -29,10 +30,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(UrlValidationError))]
+    [NotifyPropertyChangedFor(nameof(HasUrlValidationError))]
+    [NotifyPropertyChangedFor(nameof(IsInputValid))]
     private string _url = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUrlMode))]
+    [NotifyPropertyChangedFor(nameof(UrlValidationError))]
+    [NotifyPropertyChangedFor(nameof(HasUrlValidationError))]
+    [NotifyPropertyChangedFor(nameof(IsInputValid))]
+    [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
     private bool _isFileMode;
 
     public bool IsUrlMode => !IsFileMode;
@@ -54,6 +62,10 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
     [NotifyPropertyChangedFor(nameof(IsUpdateButtonEnabled))]
     [NotifyPropertyChangedFor(nameof(IsRefreshButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(DestinationValidationError))]
+    [NotifyPropertyChangedFor(nameof(HasDestinationValidationError))]
+    [NotifyPropertyChangedFor(nameof(IsDestinationValid))]
+    [NotifyPropertyChangedFor(nameof(IsInputValid))]
     private string _destinationFolder = string.Empty;
 
     [ObservableProperty]
@@ -96,18 +108,24 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
     public string StatusText => BuildStatusText();
+    public string UrlValidationError => ValidateUrl();
+    public bool HasUrlValidationError => !string.IsNullOrWhiteSpace(UrlValidationError);
+    public string DestinationValidationError => ValidateDestinationFolder();
+    public bool HasDestinationValidationError => !string.IsNullOrWhiteSpace(DestinationValidationError);
+    public bool IsDestinationValid => !HasDestinationValidationError;
+    public bool IsInputValid => !HasUrlValidationError && !HasDestinationValidationError;
 
     public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Shell", "Swift", "TypeScript"]);
     public ObservableCollection<string> AccessModifiers { get; } = new(["","Public", "Internal", "Protected"]);
     public bool IsAccessModifierVisible => Language == "C#";
     public bool IsGeneratorButtonEnabled =>
-        !IsBusy && !string.IsNullOrEmpty(DestinationFolder) && !string.IsNullOrEmpty(Url);
+        !IsBusy && IsInputValid;
 
     public bool IsUpdateButtonEnabled =>
-        !IsBusy && !string.IsNullOrEmpty(DestinationFolder);
+        !IsBusy && IsDestinationValid;
 
     public bool IsRefreshButtonEnabled =>
-        !IsBusy && !string.IsNullOrEmpty(DestinationFolder);
+        !IsBusy && IsDestinationValid;
 
     [RelayCommand]
     private async Task BrowseOpenApiFile()
@@ -132,6 +150,12 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task GenerateClient()
     {
+        if (!IsInputValid)
+        {
+            ErrorMessage = "Please fix validation errors before generating the client.";
+            return;
+        }
+
         await RunBusyOperationAsync("Generating client...", () =>
             _kiotaService.GenerateClient(Url, Namespace, ClientName, Language, AccessModifier, DestinationFolder, clean: false));
     }
@@ -139,12 +163,24 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task UpdateClient()
     {
+        if (!IsDestinationValid)
+        {
+            ErrorMessage = DestinationValidationError;
+            return;
+        }
+
         await RunBusyOperationAsync("Updating client...", () => _kiotaService.UpdateClient(DestinationFolder));
     }
 
     [RelayCommand]
     private async Task RefreshClient()
     {
+        if (!IsDestinationValid)
+        {
+            ErrorMessage = DestinationValidationError;
+            return;
+        }
+
         await RunBusyOperationAsync("Refreshing from kiota-lock.json...", () =>
             _kiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier));
     }
@@ -290,5 +326,39 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         return $"{StatusMessage}\n{ErrorMessage}";
+    }
+
+    private string ValidateUrl()
+    {
+        if (string.IsNullOrWhiteSpace(Url))
+        {
+            return "OpenAPI URL or file path is required.";
+        }
+
+        if (IsFileMode)
+        {
+            return File.Exists(Url) ? string.Empty : "Selected OpenAPI file does not exist.";
+        }
+
+        if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri))
+        {
+            return "OpenAPI URL must be an absolute URL.";
+        }
+
+        return uri.Scheme is "http" or "https"
+            ? string.Empty
+            : "OpenAPI URL must start with http:// or https://.";
+    }
+
+    private string ValidateDestinationFolder()
+    {
+        if (string.IsNullOrWhiteSpace(DestinationFolder))
+        {
+            return "Destination folder is required.";
+        }
+
+        return Directory.Exists(DestinationFolder)
+            ? string.Empty
+            : "Destination folder does not exist.";
     }
 }

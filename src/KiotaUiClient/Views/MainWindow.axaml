@@ -29,6 +29,10 @@
         <Style Selector="Button">
             <Setter Property="Padding" Value="15,8" />
         </Style>
+        <Style Selector="TextBlock.ErrorText">
+            <Setter Property="Foreground" Value="#FFFF9AA2" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
     </Window.Styles>
 
     <DockPanel>
@@ -66,10 +70,14 @@
 
                     <TextBlock Text="OpenAPI URL/File" Classes="Header" />
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBox Text="{Binding Url}" Watermark="URL or Path to OpenAPI spec" Grid.Column="0" />
+                        <TextBox Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}" Watermark="URL or Path to OpenAPI spec" Grid.Column="0" />
                         <Button Content="..." Command="{Binding BrowseOpenApiFileCommand}" 
                                 IsVisible="{Binding IsFileMode}" Grid.Column="1" VerticalAlignment="Top" Margin="5,0,0,0"/>
                     </Grid>
+                    <TextBlock Text="{Binding UrlValidationError}"
+                               IsVisible="{Binding HasUrlValidationError}"
+                               Classes="ErrorText"
+                               Margin="0,-6,0,8" />
 
                     <TextBlock Text="Project Details" Classes="Header" Margin="0,10,0,5" />
                     <TextBlock Text="Namespace" FontSize="12" />
@@ -94,6 +102,10 @@
                         <TextBox Text="{Binding DestinationFolder}" IsReadOnly="True" Grid.Column="0" />
                         <Button Content="Browse" Command="{Binding BrowseFolderCommand}" Grid.Column="1" VerticalAlignment="Top" Margin="5,0,0,0"/>
                     </Grid>
+                    <TextBlock Text="{Binding DestinationValidationError}"
+                               IsVisible="{Binding HasDestinationValidationError}"
+                               Classes="ErrorText"
+                               Margin="0,-6,0,8" />
 
                     <StackPanel Spacing="10" Margin="0,15,0,0">
                         <Button Content="Generate Client" Command="{Binding GenerateClientCommand}" 
@@ -135,11 +147,11 @@
                         Margin="0,0,0,10"
                         Padding="8"
                         BorderThickness="1"
-                        BorderBrush="#CC8B0000"
-                        Background="#20FF0000"
+                        BorderBrush="#FFFF5F6D"
+                        Background="#33FF5F6D"
                         CornerRadius="4"
                         IsVisible="{Binding HasError}">
-                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#CC8B0000" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#FFFFCDD2" TextWrapping="Wrap" />
                 </Border>
 
                 <Border DockPanel.Dock="Top"
