@@ -93,6 +93,34 @@ public sealed class MainWindowViewModelTests
         Assert.Contains("Updater launched", vm.StatusMessage);
     }
 
+    [Fact]
+    public async Task CancelCurrentOperationCancelsInFlightGenerateOperation()
+    {
+        var services = new TestServices
+        {
+            Kiota =
+            {
+                BlockGenerateUntilCanceled = true
+            }
+        };
+
+        var vm = CreateViewModel(services);
+        vm.Url = "https://example.com/openapi.json";
+        vm.DestinationFolder = CreateTempDirectory();
+
+        var generateTask = vm.GenerateClientCommand.ExecuteAsync(null);
+
+        var operationStarted = await WaitUntilAsync(() => vm.CanCancelOperation, timeoutMs: 2000);
+        Assert.True(operationStarted);
+
+        vm.CancelCurrentOperationCommand.Execute(null);
+        await generateTask;
+
+        Assert.False(vm.HasError);
+        Assert.Equal("Operation canceled.", vm.StatusMessage);
+        Assert.True(services.Kiota.GenerateClientCancellationObserved);
+    }
+
     private static MainWindowViewModel CreateViewModel(TestServices services)
     {
         return new MainWindowViewModel(services.Kiota, services.Update, services.Settings, services.Ui);
@@ -103,6 +131,22 @@ public sealed class MainWindowViewModelTests
         var path = Path.Combine(Path.GetTempPath(), $"kiota-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static async Task<bool> WaitUntilAsync(Func<bool> predicate, int timeoutMs)
+    {
+        var started = DateTime.UtcNow;
+        while ((DateTime.UtcNow - started).TotalMilliseconds < timeoutMs)
+        {
+            if (predicate())
+            {
+                return true;
+            }
+
+            await Task.Delay(25);
+        }
+
+        return predicate();
     }
 
     private sealed class TestServices
@@ -116,13 +160,34 @@ public sealed class MainWindowViewModelTests
     private sealed class FakeKiotaService : IKiotaService
     {
         public int GenerateClientCalls { get; private set; }
+        public bool GenerateClientCancellationObserved { get; private set; }
+        public bool BlockGenerateUntilCanceled { get; set; }
         public OperationResult GenerateClientResult { get; set; } = OperationResult.Success("Client generated.");
 
         public Task<OperationResult> GenerateClient(string url, string ns, string clientName, string language, string accessModifier,
             string destination, bool clean, CancellationToken ct = default)
         {
             GenerateClientCalls++;
-            return Task.FromResult(GenerateClientResult);
+            if (!BlockGenerateUntilCanceled)
+            {
+                return Task.FromResult(GenerateClientResult);
+            }
+
+            return WaitForCancellationAsync(ct);
+        }
+
+        private async Task<OperationResult> WaitForCancellationAsync(CancellationToken ct)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                return GenerateClientResult;
+            }
+            catch (OperationCanceledException)
+            {
+                GenerateClientCancellationObserved = true;
+                throw;
+            }
         }
 
         public Task<OperationResult> GenerateKiotaClient(string url, string ns, string clientName, string language, string accessModifier,
