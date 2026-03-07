@@ -88,6 +88,12 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(CanCancelOperation))]
     private bool _isBusy;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCancelOperation))]
+    [NotifyPropertyChangedFor(nameof(CancelButtonText))]
+    [NotifyPropertyChangedFor(nameof(IsCanceling))]
+    private bool _isCancellationRequested;
+
     // App update related
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanDownloadAppUpdate))]
@@ -106,7 +112,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private double _downloadProgress; // 0..1
 
     public bool CanDownloadAppUpdate => IsUpdateAvailable && !IsCheckingUpdate && !IsBusy;
-    public bool CanCancelOperation => IsBusy;
+    public bool CanCancelOperation => IsBusy && !IsCancellationRequested;
+    public bool IsCanceling => IsBusy && IsCancellationRequested;
+    public string CancelButtonText => IsCancellationRequested ? "Canceling..." : "Cancel Current Operation";
     public bool IsLoading => IsBusy || IsCheckingUpdate;
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
@@ -196,6 +204,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        IsCancellationRequested = true;
         _operationCancellationSource.Cancel();
         ErrorMessage = string.Empty;
         StatusMessage = "Cancellation requested...";
@@ -332,6 +341,7 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             IsBusy = true;
+            IsCancellationRequested = false;
             ErrorMessage = string.Empty;
             StatusMessage = pendingStatus;
             var result = await operation(cts.Token);
@@ -349,6 +359,7 @@ public partial class MainWindowViewModel : ViewModelBase
         finally
         {
             _operationCancellationSource = null;
+            IsCancellationRequested = false;
             IsBusy = false;
         }
     }

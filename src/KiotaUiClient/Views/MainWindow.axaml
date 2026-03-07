@@ -116,7 +116,7 @@
                             <Button Content="Refresh Client" Command="{Binding RefreshClientCommand}" 
                                     IsEnabled="{Binding IsRefreshButtonEnabled}" Grid.Column="1" Margin="5,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                         </Grid>
-                        <Button Content="Cancel Current Operation"
+                        <Button Content="{Binding CancelButtonText}"
                                 Command="{Binding CancelCurrentOperationCommand}"
                                 IsVisible="{Binding CanCancelOperation}"
                                 IsEnabled="{Binding CanCancelOperation}"
@@ -168,7 +168,8 @@
                         CornerRadius="4"
                         IsVisible="{Binding IsLoading}">
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Working..." />
+                        <TextBlock Text="Working..." IsVisible="{Binding !IsCanceling}" />
+                        <TextBlock Text="Canceling operation..." IsVisible="{Binding IsCanceling}" />
                         <ProgressBar IsIndeterminate="True" Height="6" />
                     </StackPanel>
                 </Border>
