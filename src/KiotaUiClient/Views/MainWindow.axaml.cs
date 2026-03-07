@@ -59,8 +59,8 @@ public partial class MainWindow : Window
 
         Opened += async (_, _) => { await LoadWindowSizeAsync(); };
 
-        // Guardar tamanho ao fechar
-        Closing += (_, _) => SaveWindowSize();
+        // Persist size on close without blocking the UI thread.
+        Closing += async (_, _) => { await SaveWindowSizeAsync(); };
     }
     private async Task LoadWindowSizeAsync()
     {
@@ -142,7 +142,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SaveWindowSize()
+    private async Task SaveWindowSizeAsync()
     {
         // Se estiver normal, usa tamanho atual; caso contrário, usa último tamanho normal memorizado.
         var w = WindowState == WindowState.Normal ? Width : _lastNormalWidth;
@@ -152,8 +152,15 @@ public partial class MainWindow : Window
         w = Math.Max(600, w);
         h = Math.Max(600, h);
 
-        _settingsService.SetDoubleAsync("Window.Width", w).GetAwaiter().GetResult();
-        _settingsService.SetDoubleAsync("Window.Height", h).GetAwaiter().GetResult();
+        try
+        {
+            await _settingsService.SetDoubleAsync("Window.Width", w);
+            await _settingsService.SetDoubleAsync("Window.Height", h);
+        }
+        catch
+        {
+            // Swallow close-time persistence failures to avoid interrupting shutdown.
+        }
     }
 
     private void Exit_OnClick(object sender, RoutedEventArgs e) => Close();
