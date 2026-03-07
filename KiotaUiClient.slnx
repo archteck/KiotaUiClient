@@ -11,4 +11,7 @@
     <Project Path="src\KiotaUiClient.Core.Application\KiotaUiClient.Core.Application.csproj" />
     <Project Path="src\KiotaUiClient.Infrastructure\KiotaUiClient.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests\KiotaUiClient.Tests\KiotaUiClient.Tests.csproj" />
+  </Folder>
 </Solution>

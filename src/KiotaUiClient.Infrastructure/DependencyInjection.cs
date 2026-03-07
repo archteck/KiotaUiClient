@@ -22,6 +22,7 @@ public static class DependencyInjection
 
         // Services
         services.AddSingleton<HttpClient>();
+        services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<IKiotaService, KiotaService>();
         services.AddSingleton<IUpdateService, UpdateService>();

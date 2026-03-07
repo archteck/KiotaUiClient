@@ -5,19 +5,22 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using KiotaUiClient.Core.Application.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace KiotaUiClient.Infrastructure.Services;
 
-public class UpdateService : IUpdateService
+public partial class UpdateService : IUpdateService
 {
     private const string RepoOwner = "archteck";
     private const string RepoName = "KiotaUiClient";
     private readonly HttpClient _http;
+    private readonly ILogger<UpdateService> _logger;
     private static readonly char[] _anyOf = ['-', '+'];
 
-    public UpdateService(HttpClient http)
+    public UpdateService(HttpClient http, ILogger<UpdateService> logger)
     {
         _http = http;
+        _logger = logger;
         if (_http.DefaultRequestHeaders.UserAgent.Count == 0)
         {
             _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("KiotaUiClient", GetCurrentVersionString()));
@@ -56,7 +59,7 @@ public class UpdateService : IUpdateService
         }
         catch
         {
-            // ignore
+            LogVersionMetadataReadFailed();
         }
         var ver = asm.GetName().Version;
         return ver?.ToString() ?? "0.0.0";
@@ -76,50 +79,64 @@ public class UpdateService : IUpdateService
         return new Version(0, 0, 0);
     }
 
-    public async Task<ReleaseInfo?> GetLatestReleaseAsync(CancellationToken ct = default)
+    public async Task<OperationResult<ReleaseInfo>> GetLatestReleaseAsync(CancellationToken ct = default)
     {
-        var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
-        using var resp = await _http.GetAsync(url, ct);
-        resp.EnsureSuccessStatusCode();
-        using var stream = await resp.Content.ReadAsStreamAsync(ct);
-        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-        var root = doc.RootElement;
-        var tag = root.GetProperty("tag_name").GetString() ?? "";
-        var name = root.GetProperty("name").GetString() ?? tag;
-        var version = ParseVersion(tag);
-
-        var assetName = "";
-        var assetUrl = "";
-        if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+        try
         {
-            foreach (var a in assets.EnumerateArray())
-            {
-                var aname = a.GetProperty("name").GetString() ?? "";
-                var dl = a.GetProperty("browser_download_url").GetString() ?? "";
-                if (IsAssetForCurrentPlatform(aname))
-                {
-                    assetName = aname;
-                    assetUrl = dl;
-                    break;
-                }
-            }
-            if (string.IsNullOrEmpty(assetUrl))
+            var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
+            using var resp = await _http.GetAsync(url, ct);
+            resp.EnsureSuccessStatusCode();
+            using var stream = await resp.Content.ReadAsStreamAsync(ct);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+            var root = doc.RootElement;
+            var tag = root.GetProperty("tag_name").GetString() ?? "";
+            var name = root.GetProperty("name").GetString() ?? tag;
+            var version = ParseVersion(tag);
+
+            var assetName = "";
+            var assetUrl = "";
+            if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
             {
                 foreach (var a in assets.EnumerateArray())
                 {
                     var aname = a.GetProperty("name").GetString() ?? "";
                     var dl = a.GetProperty("browser_download_url").GetString() ?? "";
-                    if (aname.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    if (IsAssetForCurrentPlatform(aname))
                     {
                         assetName = aname;
                         assetUrl = dl;
                         break;
                     }
                 }
+                if (string.IsNullOrEmpty(assetUrl))
+                {
+                    foreach (var a in assets.EnumerateArray())
+                    {
+                        var aname = a.GetProperty("name").GetString() ?? "";
+                        var dl = a.GetProperty("browser_download_url").GetString() ?? "";
+                        if (aname.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                        {
+                            assetName = aname;
+                            assetUrl = dl;
+                            break;
+                        }
+                    }
+                }
             }
+
+            if (string.IsNullOrEmpty(assetUrl))
+            {
+                return new OperationResult<ReleaseInfo>(false, default, "No suitable release asset found for your platform.");
+            }
+
+            var release = new ReleaseInfo(tag, name, version, assetName, assetUrl);
+            return new OperationResult<ReleaseInfo>(true, release, "Latest release retrieved successfully.");
         }
-        if (string.IsNullOrEmpty(assetUrl)) return null;
-        return new ReleaseInfo(tag, name, version, assetName, assetUrl);
+        catch (Exception ex)
+        {
+            LogGetLatestReleaseFailed(ex);
+            return new OperationResult<ReleaseInfo>(false, default, "Failed to query latest release.", ex.Message);
+        }
     }
 
     private static Version ParseVersion(string tag)
@@ -154,38 +171,55 @@ public class UpdateService : IUpdateService
         return basePath;
     }
 
-    public async Task<string> DownloadAssetAsync(string url, IProgress<double>? progress = null, CancellationToken ct = default)
+    public async Task<OperationResult<string>> DownloadAssetAsync(string url, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-        var updates = GetUpdatesRoot();
-        var file = Path.Combine(updates, Path.GetFileName(new Uri(url).AbsolutePath));
-        using var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
-        resp.EnsureSuccessStatusCode();
-        var total = resp.Content.Headers.ContentLength ?? -1L;
-        await using var input = await resp.Content.ReadAsStreamAsync(ct);
-        await using var output = File.Create(file);
-        var buffer = new byte[81920];
-        long read = 0;
-        int n;
-        while ((n = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
+        try
         {
-            await output.WriteAsync(buffer.AsMemory(0, n), ct);
-            read += n;
-            if (total > 0 && progress is not null)
+            var updates = GetUpdatesRoot();
+            var file = Path.Combine(updates, Path.GetFileName(new Uri(url).AbsolutePath));
+            using var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+            resp.EnsureSuccessStatusCode();
+            var total = resp.Content.Headers.ContentLength ?? -1L;
+            await using var input = await resp.Content.ReadAsStreamAsync(ct);
+            await using var output = File.Create(file);
+            var buffer = new byte[81920];
+            long read = 0;
+            int n;
+            while ((n = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
             {
-                progress.Report((double)read / total);
+                await output.WriteAsync(buffer.AsMemory(0, n), ct);
+                read += n;
+                if (total > 0 && progress is not null)
+                {
+                    progress.Report((double)read / total);
+                }
             }
+
+            return new OperationResult<string>(true, file, "Update package downloaded successfully.");
         }
-        return file;
+        catch (Exception ex)
+        {
+            LogDownloadAssetFailed(ex, url);
+            return new OperationResult<string>(false, default, "Failed to download update package.", ex.Message);
+        }
     }
 
-    public string ExtractToNewFolder(string zipPath, string? versionLabel = null)
+    public OperationResult<string> ExtractToNewFolder(string zipPath, string? versionLabel = null)
     {
-        var parent = Path.GetDirectoryName(AppContext.BaseDirectory) ?? AppContext.BaseDirectory;
-        var target = Path.Combine(parent, versionLabel ?? DateTime.Now.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture));
-        Directory.CreateDirectory(target);
-        ZipFile.ExtractToDirectory(zipPath, target, overwriteFiles: true);
-        File.Delete(zipPath);
-        return target;
+        try
+        {
+            var parent = Path.GetDirectoryName(AppContext.BaseDirectory) ?? AppContext.BaseDirectory;
+            var target = Path.Combine(parent, versionLabel ?? DateTime.Now.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture));
+            Directory.CreateDirectory(target);
+            ZipFile.ExtractToDirectory(zipPath, target, overwriteFiles: true);
+            File.Delete(zipPath);
+            return new OperationResult<string>(true, target, "Update package extracted successfully.");
+        }
+        catch (Exception ex)
+        {
+            LogExtractUpdateFailed(ex, zipPath);
+            return new OperationResult<string>(false, default, "Failed to extract update package.", ex.Message);
+        }
     }
 
     private static string? FindAppUpdaterExecutable(string directory)
@@ -201,26 +235,26 @@ public class UpdateService : IUpdateService
         return candidates.FirstOrDefault();
     }
 
-    public bool StartUpdaterAndExit(string extractedDir, Action? shutdownAction = null)
+    public OperationResult StartUpdaterAndExit(string extractedDir, Action? shutdownAction = null)
     {
         try
         {
             var sourceExePath = FindAppUpdaterExecutable(extractedDir);
-            if (sourceExePath is null) return false;
-            var ok = TryLaunchAndExit(extractedDir, shutdownAction);
-            if (ok)
+            if (sourceExePath is null)
             {
-                shutdownAction?.Invoke();
+                return OperationResult.Failure("Updater executable was not found in extracted package.");
             }
-            return ok;
+
+            return TryLaunchAndExit(extractedDir, shutdownAction);
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            LogStartUpdaterFailed(ex, extractedDir);
+            return OperationResult.Failure("Failed to start updater process.", ex.Message);
         }
     }
 
-    private static bool TryLaunchAndExit(string extractedDir, Action? shutdownAction = null)
+    private OperationResult TryLaunchAndExit(string extractedDir, Action? shutdownAction = null)
     {
         try
         {
@@ -232,7 +266,7 @@ public class UpdateService : IUpdateService
             var updaterTarget = Path.Combine(appDir, updaterName);
             if (!File.Exists(updaterSource))
             {
-                return false;
+                return OperationResult.Failure("Updater executable does not exist in extracted directory.");
             }
             File.Move(updaterSource, updaterTarget, overwrite: true);
 
@@ -246,11 +280,36 @@ public class UpdateService : IUpdateService
             };
             Process.Start(psi);
             shutdownAction?.Invoke();
-            return true;
+            return OperationResult.Success("Updater launched successfully.");
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            LogLaunchUpdaterFailed(ex, extractedDir);
+            return OperationResult.Failure("Failed to launch updater executable.", ex.Message);
         }
     }
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Debug,
+        Message = "Failed to read version information from process/executable metadata.")]
+    private partial void LogVersionMetadataReadFailed();
+
+    [LoggerMessage(EventId = 2002, Level = LogLevel.Error,
+        Message = "Failed to start updater process from {ExtractedDir}")]
+    private partial void LogStartUpdaterFailed(Exception ex, string extractedDir);
+
+    [LoggerMessage(EventId = 2003, Level = LogLevel.Error,
+        Message = "Failed to launch updater for extracted directory {ExtractedDir}")]
+    private partial void LogLaunchUpdaterFailed(Exception ex, string extractedDir);
+
+    [LoggerMessage(EventId = 2004, Level = LogLevel.Error,
+        Message = "Failed to query latest release metadata")]
+    private partial void LogGetLatestReleaseFailed(Exception ex);
+
+    [LoggerMessage(EventId = 2005, Level = LogLevel.Error,
+        Message = "Failed to download update asset from {Url}")]
+    private partial void LogDownloadAssetFailed(Exception ex, string url);
+
+    [LoggerMessage(EventId = 2006, Level = LogLevel.Error,
+        Message = "Failed to extract update package {ZipPath}")]
+    private partial void LogExtractUpdateFailed(Exception ex, string zipPath);
 }

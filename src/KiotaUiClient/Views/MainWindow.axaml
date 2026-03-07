@@ -29,6 +29,10 @@
         <Style Selector="Button">
             <Setter Property="Padding" Value="15,8" />
         </Style>
+        <Style Selector="TextBlock.ErrorText">
+            <Setter Property="Foreground" Value="#FFFF9AA2" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
     </Window.Styles>
 
     <DockPanel>
@@ -66,10 +70,14 @@
 
                     <TextBlock Text="OpenAPI URL/File" Classes="Header" />
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBox Text="{Binding Url}" Watermark="URL or Path to OpenAPI spec" Grid.Column="0" />
+                        <TextBox Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}" Watermark="URL or Path to OpenAPI spec" Grid.Column="0" />
                         <Button Content="..." Command="{Binding BrowseOpenApiFileCommand}" 
                                 IsVisible="{Binding IsFileMode}" Grid.Column="1" VerticalAlignment="Top" Margin="5,0,0,0"/>
                     </Grid>
+                    <TextBlock Text="{Binding UrlValidationError}"
+                               IsVisible="{Binding HasUrlValidationError}"
+                               Classes="ErrorText"
+                               Margin="0,-6,0,8" />
 
                     <TextBlock Text="Project Details" Classes="Header" Margin="0,10,0,5" />
                     <TextBlock Text="Namespace" FontSize="12" />
@@ -94,6 +102,10 @@
                         <TextBox Text="{Binding DestinationFolder}" IsReadOnly="True" Grid.Column="0" />
                         <Button Content="Browse" Command="{Binding BrowseFolderCommand}" Grid.Column="1" VerticalAlignment="Top" Margin="5,0,0,0"/>
                     </Grid>
+                    <TextBlock Text="{Binding DestinationValidationError}"
+                               IsVisible="{Binding HasDestinationValidationError}"
+                               Classes="ErrorText"
+                               Margin="0,-6,0,8" />
 
                     <StackPanel Spacing="10" Margin="0,15,0,0">
                         <Button Content="Generate Client" Command="{Binding GenerateClientCommand}" 
@@ -104,6 +116,12 @@
                             <Button Content="Refresh Client" Command="{Binding RefreshClientCommand}" 
                                     IsEnabled="{Binding IsRefreshButtonEnabled}" Grid.Column="1" Margin="5,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                         </Grid>
+                        <Button Content="{Binding CancelButtonText}"
+                                Command="{Binding CancelCurrentOperationCommand}"
+                                IsVisible="{Binding CanCancelOperation}"
+                                IsEnabled="{Binding CanCancelOperation}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Application Updater -->
@@ -119,7 +137,7 @@
                                 <TextBlock Text="Latest Version:" VerticalAlignment="Center" FontSize="12"/>
                                 <TextBlock Text="{Binding LatestVersion}" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <ProgressBar Minimum="0" Maximum="1" Value="{Binding DownloadProgress}" Height="10" />
+                            <ProgressBar Minimum="0" Maximum="1" Value="{Binding DownloadProgress}" Height="10" IsVisible="{Binding IsBusy}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -130,6 +148,32 @@
             <!-- Logs Panel -->
             <DockPanel Grid.Column="2">
                 <TextBlock Text="Output Logs" Classes="Header" DockPanel.Dock="Top" />
+
+                <Border DockPanel.Dock="Top"
+                        Margin="0,0,0,10"
+                        Padding="8"
+                        BorderThickness="1"
+                        BorderBrush="#FFFF5F6D"
+                        Background="#33FF5F6D"
+                        CornerRadius="4"
+                        IsVisible="{Binding HasError}">
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#FFFFCDD2" TextWrapping="Wrap" />
+                </Border>
+
+                <Border DockPanel.Dock="Top"
+                        Margin="0,0,0,10"
+                        Padding="8"
+                        BorderThickness="1"
+                        BorderBrush="{DynamicResource SystemAccentColor}"
+                        CornerRadius="4"
+                        IsVisible="{Binding IsLoading}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Working..." IsVisible="{Binding !IsCanceling}" />
+                        <TextBlock Text="Canceling operation..." IsVisible="{Binding IsCanceling}" />
+                        <ProgressBar IsIndeterminate="True" Height="6" />
+                    </StackPanel>
+                </Border>
+
                 <Border BorderBrush="#555" BorderThickness="1" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
                     <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
                         <TextBox Text="{Binding StatusText}"

@@ -29,13 +29,7 @@ public partial class MainWindow : Window
         _settingsService = (Application.Current as App)?.Services?.GetRequiredService<ISettingsService>()
                            ?? throw new InvalidOperationException("Services not initialized");
 
-        // Carrega tamanho salvo (aplica mínimos).
-        var savedWidth = _settingsService.GetDouble("Window.Width", Width);
-        var savedHeight = _settingsService.GetDouble("Window.Height", Height);
-        Width = Math.Max(600, savedWidth);
-        Height = Math.Max(600, savedHeight);
-
-        // Inicializa o último tamanho normal com os atuais.
+        // Inicializa o último tamanho normal com os atuais; valores persistidos são aplicados quando a janela abre.
         _lastNormalWidth = Width;
         _lastNormalHeight = Height;
 
@@ -63,9 +57,21 @@ public partial class MainWindow : Window
             _titleBar.PointerPressed += TitleBar_PointerPressed;
         }
 
-        // Guardar tamanho ao fechar
-        Closing += (_, _) => SaveWindowSize();
+        Opened += async (_, _) => { await LoadWindowSizeAsync(); };
+
+        // Persist size on close without blocking the UI thread.
+        Closing += async (_, _) => { await SaveWindowSizeAsync(); };
     }
+    private async Task LoadWindowSizeAsync()
+    {
+        var savedWidth = await _settingsService.GetDoubleAsync("Window.Width", Width);
+        var savedHeight = await _settingsService.GetDoubleAsync("Window.Height", Height);
+        Width = Math.Max(600, savedWidth);
+        Height = Math.Max(600, savedHeight);
+        _lastNormalWidth = Width;
+        _lastNormalHeight = Height;
+    }
+
 
 
     protected override void OnResized(WindowResizedEventArgs e)
@@ -136,7 +142,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SaveWindowSize()
+    private async Task SaveWindowSizeAsync()
     {
         // Se estiver normal, usa tamanho atual; caso contrário, usa último tamanho normal memorizado.
         var w = WindowState == WindowState.Normal ? Width : _lastNormalWidth;
@@ -146,8 +152,15 @@ public partial class MainWindow : Window
         w = Math.Max(600, w);
         h = Math.Max(600, h);
 
-        _settingsService.SetDouble("Window.Width", w);
-        _settingsService.SetDouble("Window.Height", h);
+        try
+        {
+            await _settingsService.SetDoubleAsync("Window.Width", w);
+            await _settingsService.SetDoubleAsync("Window.Height", h);
+        }
+        catch
+        {
+            // Swallow close-time persistence failures to avoid interrupting shutdown.
+        }
     }
 
     private void Exit_OnClick(object sender, RoutedEventArgs e) => Close();

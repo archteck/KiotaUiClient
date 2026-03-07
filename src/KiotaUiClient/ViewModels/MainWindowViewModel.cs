@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 
@@ -14,6 +15,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IUpdateService _updateService;
     private readonly ISettingsService _settingsService;
     private readonly IUiService _uiService;
+    private CancellationTokenSource? _operationCancellationSource;
 
     public MainWindowViewModel(
         IKiotaService kiotaService,
@@ -29,10 +31,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(UrlValidationError))]
+    [NotifyPropertyChangedFor(nameof(HasUrlValidationError))]
+    [NotifyPropertyChangedFor(nameof(IsInputValid))]
     private string _url = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUrlMode))]
+    [NotifyPropertyChangedFor(nameof(UrlValidationError))]
+    [NotifyPropertyChangedFor(nameof(HasUrlValidationError))]
+    [NotifyPropertyChangedFor(nameof(IsInputValid))]
+    [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
     private bool _isFileMode;
 
     public bool IsUrlMode => !IsFileMode;
@@ -54,10 +63,36 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
     [NotifyPropertyChangedFor(nameof(IsUpdateButtonEnabled))]
     [NotifyPropertyChangedFor(nameof(IsRefreshButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(DestinationValidationError))]
+    [NotifyPropertyChangedFor(nameof(HasDestinationValidationError))]
+    [NotifyPropertyChangedFor(nameof(IsDestinationValid))]
+    [NotifyPropertyChangedFor(nameof(IsInputValid))]
     private string _destinationFolder = string.Empty;
 
     [ObservableProperty]
-    private string _statusText = string.Empty;
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
+    private string _statusMessage = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(HasError))]
+    private string _errorMessage = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGeneratorButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsRefreshButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(CanDownloadAppUpdate))]
+    [NotifyPropertyChangedFor(nameof(IsLoading))]
+    [NotifyPropertyChangedFor(nameof(CanCancelOperation))]
+    private bool _isBusy;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCancelOperation))]
+    [NotifyPropertyChangedFor(nameof(CancelButtonText))]
+    [NotifyPropertyChangedFor(nameof(IsCanceling))]
+    private bool _isCancellationRequested;
 
     // App update related
     [ObservableProperty]
@@ -70,19 +105,38 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanDownloadAppUpdate))]
+    [NotifyPropertyChangedFor(nameof(IsLoading))]
     private bool _isCheckingUpdate;
 
     [ObservableProperty]
     private double _downloadProgress; // 0..1
 
-    public bool CanDownloadAppUpdate => IsUpdateAvailable && !IsCheckingUpdate;
+    public bool CanDownloadAppUpdate => IsUpdateAvailable && !IsCheckingUpdate && !IsBusy;
+    public bool CanCancelOperation => IsBusy && !IsCancellationRequested;
+    public bool IsCanceling => IsBusy && IsCancellationRequested;
+    public string CancelButtonText => IsCancellationRequested ? "Canceling..." : "Cancel Current Operation";
+    public bool IsLoading => IsBusy || IsCheckingUpdate;
+    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+    public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+    public string StatusText => BuildStatusText();
+    public string UrlValidationError => ValidateUrl();
+    public bool HasUrlValidationError => !string.IsNullOrWhiteSpace(UrlValidationError);
+    public string DestinationValidationError => ValidateDestinationFolder();
+    public bool HasDestinationValidationError => !string.IsNullOrWhiteSpace(DestinationValidationError);
+    public bool IsDestinationValid => !HasDestinationValidationError;
+    public bool IsInputValid => !HasUrlValidationError && !HasDestinationValidationError;
 
     public ObservableCollection<string> Languages { get; } = new(["","C#", "Go", "Java", "Php", "Python", "Ruby",  "Shell", "Swift", "TypeScript"]);
     public ObservableCollection<string> AccessModifiers { get; } = new(["","Public", "Internal", "Protected"]);
     public bool IsAccessModifierVisible => Language == "C#";
-    public bool IsGeneratorButtonEnabled => !(string.IsNullOrEmpty(DestinationFolder) || string.IsNullOrEmpty(Url));
-    public bool IsUpdateButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
-    public bool IsRefreshButtonEnabled => !string.IsNullOrEmpty(DestinationFolder);
+    public bool IsGeneratorButtonEnabled =>
+        !IsBusy && IsInputValid;
+
+    public bool IsUpdateButtonEnabled =>
+        !IsBusy && IsDestinationValid;
+
+    public bool IsRefreshButtonEnabled =>
+        !IsBusy && IsDestinationValid;
 
     [RelayCommand]
     private async Task BrowseOpenApiFile()
@@ -107,48 +161,89 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task GenerateClient()
     {
-        StatusText = "Generating client...";
-        StatusText = await _kiotaService.GenerateClient(Url, Namespace, ClientName,Language, AccessModifier, DestinationFolder, clean: false);
+        if (!IsInputValid)
+        {
+            ErrorMessage = "Please fix validation errors before generating the client.";
+            return;
+        }
+
+        await RunBusyOperationAsync("Generating client...", ct =>
+            _kiotaService.GenerateClient(Url, Namespace, ClientName, Language, AccessModifier, DestinationFolder, clean: false, ct));
     }
 
     [RelayCommand]
     private async Task UpdateClient()
     {
-        StatusText = "Updating client...";
-        StatusText = await _kiotaService.UpdateClient(DestinationFolder);
+        if (!IsDestinationValid)
+        {
+            ErrorMessage = DestinationValidationError;
+            return;
+        }
+
+        await RunBusyOperationAsync("Updating client...", ct => _kiotaService.UpdateClient(DestinationFolder, ct));
     }
 
     [RelayCommand]
     private async Task RefreshClient()
     {
-        StatusText = "Refreshing from kiota-lock.json...";
-        StatusText = await _kiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier);
+        if (!IsDestinationValid)
+        {
+            ErrorMessage = DestinationValidationError;
+            return;
+        }
+
+        await RunBusyOperationAsync("Refreshing from kiota-lock.json...", ct =>
+            _kiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier, ct));
+    }
+
+    [RelayCommand]
+    private void CancelCurrentOperation()
+    {
+        if (!IsBusy || _operationCancellationSource is null || _operationCancellationSource.IsCancellationRequested)
+        {
+            return;
+        }
+
+        IsCancellationRequested = true;
+        _operationCancellationSource.Cancel();
+        ErrorMessage = string.Empty;
+        StatusMessage = "Cancellation requested...";
     }
 
     [RelayCommand]
     private async Task CheckForAppUpdate()
     {
+        if (IsBusy || IsCheckingUpdate)
+        {
+            return;
+        }
+
         try
         {
             IsCheckingUpdate = true;
-            StatusText = "Checking for app updates...";
-            var latest = await _updateService.GetLatestReleaseAsync();
-            if (latest is null)
+            ErrorMessage = string.Empty;
+            StatusMessage = "Checking for app updates...";
+            var latestResult = await _updateService.GetLatestReleaseAsync();
+            if (!latestResult.IsSuccess || latestResult.Value is null)
             {
-                StatusText = "No suitable release asset found for your platform.";
+                ErrorMessage = string.IsNullOrWhiteSpace(latestResult.Details)
+                    ? latestResult.Message
+                    : $"{latestResult.Message}\n{latestResult.Details}";
                 IsUpdateAvailable = false;
                 LatestVersion = string.Empty;
                 return;
             }
+
+            var latest = latestResult.Value;
             LatestVersion = latest.TagName;
             IsUpdateAvailable = _updateService.IsUpdateAvailable(latest.Version);
-            StatusText = IsUpdateAvailable
+            StatusMessage = IsUpdateAvailable
                 ? $"Update available: {latest.TagName} (asset: {latest.AssetName})."
                 : "You're on the latest version.";
         }
         catch (Exception ex)
         {
-            StatusText = $"Update check failed: {ex.Message}";
+            ErrorMessage = $"Update check failed: {ex.Message}";
             IsUpdateAvailable = false;
         }
         finally
@@ -160,42 +255,176 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task DownloadAndRunUpdate()
     {
+        if (IsBusy || IsCheckingUpdate)
+        {
+            return;
+        }
+
         try
         {
-            StatusText = "Preparing download...";
-            var latest = await _updateService.GetLatestReleaseAsync();
-            if (latest is null)
+            IsBusy = true;
+            ErrorMessage = string.Empty;
+            StatusMessage = "Preparing download...";
+            var latestResult = await _updateService.GetLatestReleaseAsync();
+            if (!latestResult.IsSuccess || latestResult.Value is null)
             {
-                StatusText = "No suitable release asset found.";
+                ErrorMessage = string.IsNullOrWhiteSpace(latestResult.Details)
+                    ? latestResult.Message
+                    : $"{latestResult.Message}\n{latestResult.Details}";
                 return;
             }
+
+            var latest = latestResult.Value;
             if (!_updateService.IsUpdateAvailable(latest.Version))
             {
-                StatusText = "Already up to date.";
+                StatusMessage = "Already up to date.";
                 return;
             }
 
             var progress = new Progress<double>(p => { DownloadProgress = p; });
-            var zipPath = await _updateService.DownloadAssetAsync(latest.AssetDownloadUrl, progress);
-            StatusText = "Download complete. Extracting...";
-            var extractedDir = _updateService.ExtractToNewFolder(zipPath, latest.TagName);
+            var downloadResult = await _updateService.DownloadAssetAsync(latest.AssetDownloadUrl, progress);
+            if (!downloadResult.IsSuccess || string.IsNullOrWhiteSpace(downloadResult.Value))
+            {
+                ErrorMessage = string.IsNullOrWhiteSpace(downloadResult.Details)
+                    ? downloadResult.Message
+                    : $"{downloadResult.Message}\n{downloadResult.Details}";
+                return;
+            }
+
+            StatusMessage = "Download complete. Extracting...";
+            var extractResult = _updateService.ExtractToNewFolder(downloadResult.Value, latest.TagName);
+            if (!extractResult.IsSuccess || string.IsNullOrWhiteSpace(extractResult.Value))
+            {
+                ErrorMessage = string.IsNullOrWhiteSpace(extractResult.Details)
+                    ? extractResult.Message
+                    : $"{extractResult.Message}\n{extractResult.Details}";
+                return;
+            }
+
+            var extractedDir = extractResult.Value;
             // Hand off to external updater which will copy files into current app folder and relaunch
-            var launched = _updateService.StartUpdaterAndExit(extractedDir, () =>
+            var launchedResult = _updateService.StartUpdaterAndExit(extractedDir, () =>
             {
                 (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
             });
-            if (launched)
+            if (launchedResult.IsSuccess)
             {
-                StatusText = "Updater launched. The application will close and restart after updating.";
+                StatusMessage = "Updater launched. The application will close and restart after updating.";
             }
             else
             {
-                StatusText = $"Update extracted to {extractedDir}, but failed to start updater. Please update manually.";
+                ErrorMessage = string.IsNullOrWhiteSpace(launchedResult.Details)
+                    ? launchedResult.Message
+                    : $"{launchedResult.Message}\n{launchedResult.Details}";
             }
         }
         catch (Exception ex)
         {
-            StatusText = $"Update failed: {ex.Message}";
+            ErrorMessage = $"Update failed: {ex.Message}";
         }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task RunBusyOperationAsync(string pendingStatus, Func<CancellationToken, Task<OperationResult>> operation)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        using var cts = new CancellationTokenSource();
+        _operationCancellationSource = cts;
+
+        try
+        {
+            IsBusy = true;
+            IsCancellationRequested = false;
+            ErrorMessage = string.Empty;
+            StatusMessage = pendingStatus;
+            var result = await operation(cts.Token);
+            SetResultState(result);
+        }
+        catch (OperationCanceledException)
+        {
+            ErrorMessage = string.Empty;
+            StatusMessage = "Operation canceled.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            _operationCancellationSource = null;
+            IsCancellationRequested = false;
+            IsBusy = false;
+        }
+    }
+
+    private void SetResultState(OperationResult result)
+    {
+        if (!result.IsSuccess)
+        {
+            ErrorMessage = string.IsNullOrWhiteSpace(result.Details)
+                ? result.Message
+                : $"{result.Message}\n{result.Details}";
+            return;
+        }
+
+        StatusMessage = string.IsNullOrWhiteSpace(result.Details)
+            ? result.Message
+            : $"{result.Message}\n{result.Details}";
+    }
+
+    private string BuildStatusText()
+    {
+        if (string.IsNullOrWhiteSpace(StatusMessage))
+        {
+            return ErrorMessage;
+        }
+
+        if (string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            return StatusMessage;
+        }
+
+        return $"{StatusMessage}\n{ErrorMessage}";
+    }
+
+    private string ValidateUrl()
+    {
+        if (string.IsNullOrWhiteSpace(Url))
+        {
+            return "OpenAPI URL or file path is required.";
+        }
+
+        if (IsFileMode)
+        {
+            return File.Exists(Url) ? string.Empty : "Selected OpenAPI file does not exist.";
+        }
+
+        if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri))
+        {
+            return "OpenAPI URL must be an absolute URL.";
+        }
+
+        return uri.Scheme is "http" or "https"
+            ? string.Empty
+            : "OpenAPI URL must start with http:// or https://.";
+    }
+
+    private string ValidateDestinationFolder()
+    {
+        if (string.IsNullOrWhiteSpace(DestinationFolder))
+        {
+            return "Destination folder is required.";
+        }
+
+        return Directory.Exists(DestinationFolder)
+            ? string.Empty
+            : "Destination folder does not exist.";
     }
 }

@@ -2,31 +2,34 @@
 
 public interface IKiotaService
 {
-    Task<string> GenerateClient(
+    Task<OperationResult> GenerateClient(
         string url,
         string ns,
         string clientName,
         string language,
         string accessModifier,
         string destination,
-        bool clean);
+        bool clean,
+        CancellationToken ct = default);
 
-    Task<string> GenerateKiotaClient(
+    Task<OperationResult> GenerateKiotaClient(
         string url,
         string ns,
         string clientName,
         string language,
         string accessModifier,
         string destination,
-        bool clean);
+        bool clean,
+        CancellationToken ct = default);
 
-    Task<string> UpdateClient(string destination);
+    Task<OperationResult> UpdateClient(string destination, CancellationToken ct = default);
 
-    Task<string> RefreshFromLock(
+    Task<OperationResult> RefreshFromLock(
         string destination,
         string language = "",
-        string accessModifier = "");
+        string accessModifier = "",
+        CancellationToken ct = default);
 
-    Task EnsureKiotaInstalled();
-    Task EnsureKiotaUpdated();
+    Task EnsureKiotaInstalled(CancellationToken ct = default);
+    Task EnsureKiotaUpdated(CancellationToken ct = default);
 }
