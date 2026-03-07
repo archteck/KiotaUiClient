@@ -15,6 +15,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IUpdateService _updateService;
     private readonly ISettingsService _settingsService;
     private readonly IUiService _uiService;
+    private CancellationTokenSource? _operationCancellationSource;
 
     public MainWindowViewModel(
         IKiotaService kiotaService,
@@ -84,6 +85,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsRefreshButtonEnabled))]
     [NotifyPropertyChangedFor(nameof(CanDownloadAppUpdate))]
     [NotifyPropertyChangedFor(nameof(IsLoading))]
+    [NotifyPropertyChangedFor(nameof(CanCancelOperation))]
     private bool _isBusy;
 
     // App update related
@@ -104,6 +106,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private double _downloadProgress; // 0..1
 
     public bool CanDownloadAppUpdate => IsUpdateAvailable && !IsCheckingUpdate && !IsBusy;
+    public bool CanCancelOperation => IsBusy;
     public bool IsLoading => IsBusy || IsCheckingUpdate;
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
@@ -156,8 +159,8 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        await RunBusyOperationAsync("Generating client...", () =>
-            _kiotaService.GenerateClient(Url, Namespace, ClientName, Language, AccessModifier, DestinationFolder, clean: false));
+        await RunBusyOperationAsync("Generating client...", ct =>
+            _kiotaService.GenerateClient(Url, Namespace, ClientName, Language, AccessModifier, DestinationFolder, clean: false, ct));
     }
 
     [RelayCommand]
@@ -169,7 +172,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        await RunBusyOperationAsync("Updating client...", () => _kiotaService.UpdateClient(DestinationFolder));
+        await RunBusyOperationAsync("Updating client...", ct => _kiotaService.UpdateClient(DestinationFolder, ct));
     }
 
     [RelayCommand]
@@ -181,8 +184,21 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        await RunBusyOperationAsync("Refreshing from kiota-lock.json...", () =>
-            _kiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier));
+        await RunBusyOperationAsync("Refreshing from kiota-lock.json...", ct =>
+            _kiotaService.RefreshFromLock(DestinationFolder, Language, AccessModifier, ct));
+    }
+
+    [RelayCommand]
+    private void CancelCurrentOperation()
+    {
+        if (!IsBusy || _operationCancellationSource is null || _operationCancellationSource.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _operationCancellationSource.Cancel();
+        ErrorMessage = string.Empty;
+        StatusMessage = "Cancellation requested...";
     }
 
     [RelayCommand]
@@ -303,20 +319,28 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private async Task RunBusyOperationAsync(string pendingStatus, Func<Task<OperationResult>> operation)
+    private async Task RunBusyOperationAsync(string pendingStatus, Func<CancellationToken, Task<OperationResult>> operation)
     {
         if (IsBusy)
         {
             return;
         }
 
+        using var cts = new CancellationTokenSource();
+        _operationCancellationSource = cts;
+
         try
         {
             IsBusy = true;
             ErrorMessage = string.Empty;
             StatusMessage = pendingStatus;
-            var result = await operation();
+            var result = await operation(cts.Token);
             SetResultState(result);
+        }
+        catch (OperationCanceledException)
+        {
+            ErrorMessage = string.Empty;
+            StatusMessage = "Operation canceled.";
         }
         catch (Exception ex)
         {
@@ -324,6 +348,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         finally
         {
+            _operationCancellationSource = null;
             IsBusy = false;
         }
     }

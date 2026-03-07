@@ -119,25 +119,25 @@ public sealed class MainWindowViewModelTests
         public OperationResult GenerateClientResult { get; set; } = OperationResult.Success("Client generated.");
 
         public Task<OperationResult> GenerateClient(string url, string ns, string clientName, string language, string accessModifier,
-            string destination, bool clean)
+            string destination, bool clean, CancellationToken ct = default)
         {
             GenerateClientCalls++;
             return Task.FromResult(GenerateClientResult);
         }
 
         public Task<OperationResult> GenerateKiotaClient(string url, string ns, string clientName, string language, string accessModifier,
-            string destination, bool clean)
+            string destination, bool clean, CancellationToken ct = default)
             => Task.FromResult(OperationResult.Success("Generated."));
 
-        public Task<OperationResult> UpdateClient(string destination)
+        public Task<OperationResult> UpdateClient(string destination, CancellationToken ct = default)
             => Task.FromResult(OperationResult.Success("Updated."));
 
-        public Task<OperationResult> RefreshFromLock(string destination, string language = "", string accessModifier = "")
+        public Task<OperationResult> RefreshFromLock(string destination, string language = "", string accessModifier = "", CancellationToken ct = default)
             => Task.FromResult(OperationResult.Success("Refreshed."));
 
-        public Task EnsureKiotaInstalled() => Task.CompletedTask;
+        public Task EnsureKiotaInstalled(CancellationToken ct = default) => Task.CompletedTask;
 
-        public Task EnsureKiotaUpdated() => Task.CompletedTask;
+        public Task EnsureKiotaUpdated(CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class FakeUpdateService : IUpdateService

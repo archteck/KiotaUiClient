@@ -48,7 +48,8 @@ public partial class KiotaService : IKiotaService
         string language,
         string accessModifier,
         string destination,
-        bool clean)
+        bool clean,
+        CancellationToken ct = default)
     {
         // Validate language
         if (!_languageCommands.TryGetValue(language, out var languageCommand))
@@ -59,7 +60,7 @@ public partial class KiotaService : IKiotaService
             !_validCSharpAccessModifiers.Contains(accessModifier))
             return OperationResult.Failure("Invalid access modifier.");
 
-        return await GenerateKiotaClient(url, ns, clientName, languageCommand, accessModifier, destination, clean);
+        return await GenerateKiotaClient(url, ns, clientName, languageCommand, accessModifier, destination, clean, ct);
     }
 
     public async Task<OperationResult> GenerateKiotaClient(
@@ -69,11 +70,12 @@ public partial class KiotaService : IKiotaService
         string language,
         string accessModifier,
         string destination,
-        bool clean)
+        bool clean,
+        CancellationToken ct = default)
     {
         try
         {
-            await EnsureKiotaInstalled();
+            await EnsureKiotaInstalled(ct);
 
             destination = NormalizePath(destination);
 
@@ -87,7 +89,11 @@ public partial class KiotaService : IKiotaService
                 arguments.Add(accessModifier);
             }
 
-            return await RunCommandAndFormatResult("kiota", arguments.ToArray());
+            return await RunCommandAndFormatResult("kiota", ct, arguments.ToArray());
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -96,12 +102,12 @@ public partial class KiotaService : IKiotaService
         }
     }
 
-    public async Task<OperationResult> UpdateClient(string destination)
+    public async Task<OperationResult> UpdateClient(string destination, CancellationToken ct = default)
     {
         try
         {
-            await EnsureKiotaInstalled();
-            await EnsureKiotaUpdated();
+            await EnsureKiotaInstalled(ct);
+            await EnsureKiotaUpdated(ct);
             destination = NormalizePath(destination);
 
             var arguments = new List<string>
@@ -111,7 +117,11 @@ public partial class KiotaService : IKiotaService
                 "-o", destination
             };
 
-            return await RunCommandAndFormatResult("kiota", arguments.ToArray());
+            return await RunCommandAndFormatResult("kiota", ct, arguments.ToArray());
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -123,7 +133,8 @@ public partial class KiotaService : IKiotaService
     public async Task<OperationResult> RefreshFromLock(
         string destination,
         string language = "",
-        string accessModifier = "")
+        string accessModifier = "",
+        CancellationToken ct = default)
     {
         try
         {
@@ -131,7 +142,7 @@ public partial class KiotaService : IKiotaService
             if (!File.Exists(lockPath))
                 return OperationResult.Failure("kiota-lock.json not found.");
 
-            var json = await File.ReadAllTextAsync(lockPath);
+            var json = await File.ReadAllTextAsync(lockPath, ct);
             var data = JsonSerializer.Deserialize<KiotaLock>(json);
 
             if (data is null || string.IsNullOrWhiteSpace(data.DescriptionLocation))
@@ -156,7 +167,12 @@ public partial class KiotaService : IKiotaService
                 languageToUse!,
                 accessModifierToUse,
                 destination,
-                true);
+                true,
+                ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -207,12 +223,12 @@ public partial class KiotaService : IKiotaService
         return false;
     }
 
-    public async Task EnsureKiotaInstalled()
+    public async Task EnsureKiotaInstalled(CancellationToken ct = default)
     {
-        var result = await RunCommand("dotnet", "tool", "list", "-g");
+        var result = await RunCommand("dotnet", ct, "tool", "list", "-g");
         if (!result.StdOut.Contains("Microsoft.OpenApi.Kiota", StringComparison.OrdinalIgnoreCase))
         {
-            var installResult = await RunCommand("dotnet", "tool", "install", "--global", "Microsoft.OpenApi.Kiota");
+            var installResult = await RunCommand("dotnet", ct, "tool", "install", "--global", "Microsoft.OpenApi.Kiota");
             if (!installResult.IsSuccess)
             {
                 var installFailure = BuildFailureResult("dotnet tool install --global Microsoft.OpenApi.Kiota", installResult);
@@ -222,9 +238,9 @@ public partial class KiotaService : IKiotaService
         }
     }
 
-    public async Task EnsureKiotaUpdated()
+    public async Task EnsureKiotaUpdated(CancellationToken ct = default)
     {
-        var result = await RunCommand("dotnet", "tool", "update", "--global", "Microsoft.OpenApi.Kiota");
+        var result = await RunCommand("dotnet", ct, "tool", "update", "--global", "Microsoft.OpenApi.Kiota");
         if (!result.IsSuccess)
         {
             var updateFailure = BuildFailureResult("dotnet tool update --global Microsoft.OpenApi.Kiota", result);
@@ -232,7 +248,7 @@ public partial class KiotaService : IKiotaService
         }
     }
 
-    private async Task<CommandResult> RunCommand(string file, params string[] args)
+    private async Task<CommandResult> RunCommand(string file, CancellationToken ct, params string[] args)
     {
         var psi = new ProcessStartInfo
         {
@@ -261,28 +277,42 @@ public partial class KiotaService : IKiotaService
             using var reader = proc.StandardOutput;
             while (!reader.EndOfStream)
             {
+                ct.ThrowIfCancellationRequested();
                 var line = reader.ReadLine();
                 if (line != null)
                 {
                     outputBuilder.AppendLine(line);
                 }
             }
-        });
+        }, ct);
 
         var errorTask = Task.Run(() =>
         {
             using var reader = proc.StandardError;
             while (!reader.EndOfStream)
             {
+                ct.ThrowIfCancellationRequested();
                 var line = reader.ReadLine();
                 if (line != null)
                 {
                     errorBuilder.AppendLine(line);
                 }
             }
-        });
+        }, ct);
 
-        await Task.WhenAll(outputTask, errorTask, proc.WaitForExitAsync());
+        try
+        {
+            await Task.WhenAll(outputTask, errorTask, proc.WaitForExitAsync(ct));
+        }
+        catch (OperationCanceledException)
+        {
+            if (!proc.HasExited)
+            {
+                proc.Kill(true);
+            }
+
+            throw;
+        }
 
         return new CommandResult(proc.ExitCode, outputBuilder.ToString(), errorBuilder.ToString());
     }
@@ -347,9 +377,9 @@ public partial class KiotaService : IKiotaService
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 
-    private async Task<OperationResult> RunCommandAndFormatResult(string file, params string[] args)
+    private async Task<OperationResult> RunCommandAndFormatResult(string file, CancellationToken ct, params string[] args)
     {
-        var result = await RunCommand(file, args);
+        var result = await RunCommand(file, ct, args);
         var command = string.Join(' ', new[] { file }.Concat(args));
 
         if (!result.IsSuccess)

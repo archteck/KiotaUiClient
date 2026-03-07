@@ -9,7 +9,8 @@ public interface IKiotaService
         string language,
         string accessModifier,
         string destination,
-        bool clean);
+        bool clean,
+        CancellationToken ct = default);
 
     Task<OperationResult> GenerateKiotaClient(
         string url,
@@ -18,15 +19,17 @@ public interface IKiotaService
         string language,
         string accessModifier,
         string destination,
-        bool clean);
+        bool clean,
+        CancellationToken ct = default);
 
-    Task<OperationResult> UpdateClient(string destination);
+    Task<OperationResult> UpdateClient(string destination, CancellationToken ct = default);
 
     Task<OperationResult> RefreshFromLock(
         string destination,
         string language = "",
-        string accessModifier = "");
+        string accessModifier = "",
+        CancellationToken ct = default);
 
-    Task EnsureKiotaInstalled();
-    Task EnsureKiotaUpdated();
+    Task EnsureKiotaInstalled(CancellationToken ct = default);
+    Task EnsureKiotaUpdated(CancellationToken ct = default);
 }

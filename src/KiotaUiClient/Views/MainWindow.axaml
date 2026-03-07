@@ -116,6 +116,12 @@
                             <Button Content="Refresh Client" Command="{Binding RefreshClientCommand}" 
                                     IsEnabled="{Binding IsRefreshButtonEnabled}" Grid.Column="1" Margin="5,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                         </Grid>
+                        <Button Content="Cancel Current Operation"
+                                Command="{Binding CancelCurrentOperationCommand}"
+                                IsVisible="{Binding CanCancelOperation}"
+                                IsEnabled="{Binding CanCancelOperation}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Application Updater -->
