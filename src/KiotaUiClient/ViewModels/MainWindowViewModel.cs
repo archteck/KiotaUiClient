@@ -276,7 +276,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private async Task RunBusyOperationAsync(string pendingStatus, Func<Task<string>> operation)
+    private async Task RunBusyOperationAsync(string pendingStatus, Func<Task<OperationResult>> operation)
     {
         if (IsBusy)
         {
@@ -301,16 +301,19 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void SetResultState(string result)
+    private void SetResultState(OperationResult result)
     {
-        var value = (result ?? string.Empty).Trim();
-        if (value.StartsWith("ERROR", StringComparison.OrdinalIgnoreCase))
+        if (!result.IsSuccess)
         {
-            ErrorMessage = value;
+            ErrorMessage = string.IsNullOrWhiteSpace(result.Details)
+                ? result.Message
+                : $"{result.Message}\n{result.Details}";
             return;
         }
 
-        StatusMessage = value;
+        StatusMessage = string.IsNullOrWhiteSpace(result.Details)
+            ? result.Message
+            : $"{result.Message}\n{result.Details}";
     }
 
     private string BuildStatusText()

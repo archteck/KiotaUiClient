@@ -2,7 +2,7 @@
 
 public interface IKiotaService
 {
-    Task<string> GenerateClient(
+    Task<OperationResult> GenerateClient(
         string url,
         string ns,
         string clientName,
@@ -11,7 +11,7 @@ public interface IKiotaService
         string destination,
         bool clean);
 
-    Task<string> GenerateKiotaClient(
+    Task<OperationResult> GenerateKiotaClient(
         string url,
         string ns,
         string clientName,
@@ -20,9 +20,9 @@ public interface IKiotaService
         string destination,
         bool clean);
 
-    Task<string> UpdateClient(string destination);
+    Task<OperationResult> UpdateClient(string destination);
 
-    Task<string> RefreshFromLock(
+    Task<OperationResult> RefreshFromLock(
         string destination,
         string language = "",
         string accessModifier = "");
