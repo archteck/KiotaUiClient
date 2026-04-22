@@ -8,17 +8,17 @@
         <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.14"/>
         <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2"/>
         <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.2"/>
-        <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.6"/>
-        <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.6"/>
-        <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.6"/>
-        <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.6"/>
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7"/>
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.7"/>
+        <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7"/>
+        <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7"/>
         <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.2"/>
-        <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.6"/>
-        <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.6"/>
+        <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7"/>
+        <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.7"/>
         <!--    KiotaUiClient Tests   -->
         <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.4.0"/>
         <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5"/>
-        <PackageVersion Include="coverlet.collector" Version="8.0.1"/>
+        <PackageVersion Include="coverlet.collector" Version="10.0.0"/>
         <PackageVersion Include="xunit.v3" Version="3.2.2"/>
     </ItemGroup>
 </Project>
