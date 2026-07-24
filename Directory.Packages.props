@@ -15,8 +15,8 @@
         <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.2"/>
         <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10"/>
         <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10"/>
-        <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3"/>
-        <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.3"/>
+        <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.4"/>
+        <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.4"/>
         <!--    KiotaUiClient Tests   -->
         <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1"/>
         <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5"/>
