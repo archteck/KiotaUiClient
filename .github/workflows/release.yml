@@ -1,4 +1,4 @@
-﻿name: Build and Release Avalonia App
+name: Build and Release Avalonia App
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x' # or whatever version you're targeting
+          global-json-file: global.json
 
       - name: Restore dependencies
         run: dotnet restore

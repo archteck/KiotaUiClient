@@ -9,19 +9,20 @@ This application allows you to:
 <img width="847" height="808" alt="image" src="https://github.com/user-attachments/assets/7810db5c-b956-4460-9de8-8b2982207c2e" />
 
 ## Requirements
-- .NET 10.0
+- .NET 11.0
 - Microsoft.OpenAPI.Kiota (installed automatically by the application)
 
 ## Installation
 Download a Release for you OS (Windows/Mac/Linux) or build it yourself:
 
-Steps to build:
-1. Clone this repository
-2. Build and run the application using the .NET SDK or your preferred IDE
-3. git clone https://github.com/archteck/KiotaUiClient.git
-4. cd KiotaUiClient
-5. dotnet build
-6. dotnet run --project KiotaUiClient
+Steps to build (requires the .NET 11 SDK):
+```bash
+git clone https://github.com/archteck/KiotaUiClient.git
+cd KiotaUiClient
+dotnet build
+dotnet test
+dotnet run --project src/KiotaUiClient
+```
 
 ## Usage
 The application interface includes several fields that correspond to Kiota's command-line options:
