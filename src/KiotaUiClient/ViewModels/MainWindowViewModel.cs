@@ -204,10 +204,12 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        // Update state before cancelling: Cancel() may run the operation's
+        // continuation synchronously, which sets the final "Operation canceled." status.
         IsCancellationRequested = true;
-        _operationCancellationSource.Cancel();
         ErrorMessage = string.Empty;
         StatusMessage = "Cancellation requested...";
+        _operationCancellationSource.Cancel();
     }
 
     [RelayCommand]
